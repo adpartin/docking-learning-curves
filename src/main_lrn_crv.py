@@ -235,23 +235,23 @@ def run(args):
     #      Learning curve 
     # -----------------------------------------------        
     # LC args
-    lrn_crv_init_kwargs = { 'cv': None, 'cv_lists': (tr_id, vl_id, te_id),
-                            'lc_step_scale': args['lc_step_scale'], 'n_shards': args['n_shards'],
-                            'min_shard': args['min_shard'], 'max_shard': args['max_shard'],
-                            'outdir': args['rout'], 'shards_arr': args['shards_arr'], 'logger': lg.logger}
+    lc_init_kwargs = { 'cv': None, 'cv_lists': (tr_id, vl_id, te_id),
+                       'lc_step_scale': args['lc_step_scale'], 'n_shards': args['n_shards'],
+                       'min_shard': args['min_shard'], 'max_shard': args['max_shard'],
+                       'outdir': args['rout'], 'shards_arr': args['shards_arr'], 'logger': lg.logger}
                     
-    lrn_crv_trn_kwargs = { 'framework': args['framework'], 'mltype': mltype,
-                           'n_jobs': args['n_jobs'], 'random_state': args['seed'],
-                           'ml_model_def': ml_model_def, 'keras_callbacks_def': keras_callbacks_def}
-    
+    lc_trn_kwargs = { 'framework': args['framework'], 'mltype': mltype,
+                      'n_jobs': args['n_jobs'], 'random_state': args['seed'],
+                      'ml_model_def': ml_model_def, 'keras_callbacks_def': keras_callbacks_def}
+
     # LC object
-    lc_obj = LearningCurve( X=xdata, Y=ydata, meta=meta, **lrn_crv_init_kwargs )        
+    lc_obj = LearningCurve( X=xdata, Y=ydata, meta=meta, **lc_init_kwargs )
 
     if args['hp_file'] is None:
         # The regular workflow where all subsets are trained with the same HPs
-        lrn_crv_trn_kwargs['init_kwargs'] = ml_init_args
-        lrn_crv_trn_kwargs['fit_kwargs'] = ml_fit_args
-        lc_scores = lc_obj.trn_learning_curve( **lrn_crv_trn_kwargs )
+        lc_trn_kwargs['init_kwargs'] = ml_init_args
+        lc_trn_kwargs['fit_kwargs'] = ml_fit_args
+        lc_scores = lc_obj.trn_learning_curve( **lc_trn_kwargs )
     else:
         # The workflow follows PS-HPO where we a the set HPs per subset.
         # In this case we need to call the trn_learning_curve() method for
@@ -395,7 +395,7 @@ def run(args):
     del xdata, ydata
 
     # This is required for HPO via UPF workflow on Theta HPC
-    return lrn_crv_scores[(lrn_crv_scores['metric'] == args['hpo_metric']) & (lrn_crv_scores['set'] == 'te')].values[0][3]
+    return lc_scores[(lc_scores['metric'] == args['hpo_metric']) & (lc_scores['set'] == 'te')].values[0][3]
 
 
 def main(args):
