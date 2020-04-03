@@ -58,10 +58,12 @@ from utils.classlogger import Logger
 from utils.utils import load_data, dump_dict, get_print_func
 from ml.scale import scale_fea
 from ml.data import extract_subset_fea
+
+import learningcurve as lc
 from learningcurve.lrn_crv import LearningCurve
 import learningcurve.lrn_crv_plot as lrn_crv_plot 
     
-        
+
 def parse_args(args):
     parser = argparse.ArgumentParser(description='Generate learning curves.')
 
@@ -96,17 +98,6 @@ def parse_args(args):
     # parser.add_argument('-cvf', '--cv_folds', default=1, type=str, help='Number cross-val folds (default: 1).')
     # parser.add_argument('-cvf_arr', '--cv_folds_arr', nargs='+', type=int, default=None, help='The specific folds in the cross-val run (default: None).')
     
-    # ML models
-    ## parser.add_argument('-ml', '--model_name', default='lgb_reg', type=str,
-    ##                     choices=['lgb_reg', 'rf_reg', 'nn_reg', 'nn_reg0', 'nn_reg1', 'nn_reg_attn', 'nn_reg_layer_less', 'nn_reg_layer_more',
-    ##                              'nn_reg_neuron_less', 'nn_reg_neuron_more', 'nn_reg_res', 'nn_reg_mini', 'nn_reg_ap'], help='ML model (default: lgb_reg).')
-
-    # LightGBM params
-    parser.add_argument('--gbm_leaves', default=31, type=int, help='Maximum tree leaves for base learners (default: 31).')
-    parser.add_argument('--gbm_lr', default=0.1, type=float, help='Boosting learning rate (default: 0.1).')
-    parser.add_argument('--gbm_max_depth', default=-1, type=int, help='Maximum tree depth for base learners (default: -1).')
-    parser.add_argument('--gbm_trees', default=100, type=int, help='Number of trees (default: 100).')
-
     # Learning curve
     parser.add_argument('--lc_step_scale', default='log', type=str, choices=['log', 'linear'],
                         help='Scale of progressive sampling of shards in a learning curve (log2, log, log10, linear) (default: log).')
@@ -131,23 +122,6 @@ def parse_args(args):
 
     args, other_args = parser.parse_known_args(args)
     return args
-
-    
-# def get_model_kwargs(args):
-#     """ Get ML model init and fit agrs. """
-#     if args['framework'] == 'lightgbm':
-#         model_init_kwargs = { 'n_estimators': args['gbm_trees'], 'max_depth': args['gbm_max_depth'],
-#                               'learning_rate': args['gbm_lr'], 'num_leaves': args['gbm_leaves'],
-#                               'n_jobs': args['n_jobs'], 'random_state': args['seed'] }
-#         model_fit_kwargs = {'verbose': False}
-#     elif args['framework'] == 'sklearn':
-#         model_init_kwargs = { 'n_estimators': args['rf_trees'], 'n_jobs': args['n_jobs'], 'random_state': args['seed'] }
-#         model_fit_kwargs = {}
-#     elif args['framework'] == 'keras':
-#         model_init_kwargs = { 'input_dim': data.shape[1], 'dr_rate': args['dr_rate'],
-#                               'opt_name': args['opt'], 'lr': args['lr'], 'batchnorm': args['batchnorm']}
-#         model_fit_kwargs = { 'batch_size': args['batch_size'], 'epochs': args['epochs'], 'verbose': 1 }        
-#     return model_init_kwargs, model_fit_kwargs               
 
 
 def run(args):
@@ -180,12 +154,11 @@ def run(args):
     # -----------------------------------------------
     #       Run (single split) outdir
     # -----------------------------------------------
-    # Create run outdir
     if args['rout'] is not None:
         rout = gout / args['rout']
     else:
         rout = gout / f'run_{split_id}'
-        args['rout'] = rout  # str(rout)
+        args['rout'] = rout
     os.makedirs(rout, exist_ok=True)
     
     # -----------------------------------------------
@@ -238,53 +211,47 @@ def run(args):
     # -----------------------------------------------
     # CLR settings
     ## clr_keras_kwargs = {'mode': args['clr_mode'], 'base_lr': args['clr_base_lr'],
-    ##                     'max_lr': args['clr_max_lr'], 'gamma': args['clr_gamma']}
+    ##                     'max_lr': args['clr_max_lr'], 'gamma': args['clr_gamma']}       
 
-    # Define ML model
-    ## if 'lgb' in args['model_name']:
-    ##     args['framework'] = 'lightgbm'
-    ## elif args['model_name'] == 'rf_reg':
-    ##     args['framework'] = 'sklearn'
-    ## elif 'nn_' in args['model_name']:
-    ##     args['framework'] = 'keras'        
+    # LGBM regressor model def
+    # args['framework'] = 'lightgbm'
+    # ml_model_def = lgb.LGBMRegressor
+    # mltype = 'reg'
+    # ml_init_args = { 'n_estimators': 100, 'max_depth': -1,
+    #                  'learning_rate': 0.1, 'num_leaves': 31,
+    #                  'n_jobs': 8, 'random_state': args['seed'] }
+    # ml_fit_args = {'verbose': False, 'early_stopping_rounds': 10}
 
-    # ML model definitions
-    args['framework'] = 'lightgbm'
-    ml_model_def = lgb.LGBMRegressor
+    # Keras model def (reg_go)
+    from models.reg_go_model import reg_go_model_def, reg_go_callback_def
+    args['framework'] = 'keras'
+    ml_model_def = reg_go_model_def
+    keras_callbacks_def = reg_go_callback_def
     mltype = 'reg'
-    ml_init_args = { 'n_estimators': args['gbm_trees'], 'max_depth': args['gbm_max_depth'],
-                     'learning_rate': args['gbm_lr'], 'num_leaves': args['gbm_leaves'],
-                     'n_jobs': args['n_jobs'], 'random_state': args['seed'] }
-    ml_fit_args = {'verbose': False, 'early_stopping_rounds': 10}
-        
+    ml_init_args = {'input_dim': xdata.shape[1], 'dr_rate': 0.1}
+    ml_fit_args = {'epochs': 300, 'batch_size': 32, 'verbose': 1}
+
     # -----------------------------------------------
     #      Learning curve 
     # -----------------------------------------------        
     # LC args
-    lrn_crv_init_kwargs = { 'cv': None, 'cv_lists': (tr_id, vl_id, te_id), ## 'cv_folds_arr': args['cv_folds_arr'],
+    lrn_crv_init_kwargs = { 'cv': None, 'cv_lists': (tr_id, vl_id, te_id),
                             'lc_step_scale': args['lc_step_scale'], 'n_shards': args['n_shards'],
-                            'min_shard': args['min_shard'], 'max_shard': args['max_shard'], 'outdir': args['rout'],
-                            'shards_arr': args['shards_arr'], ## 'args': args,
-                            'logger': lg.logger}
+                            'min_shard': args['min_shard'], 'max_shard': args['max_shard'],
+                            'outdir': args['rout'], 'shards_arr': args['shards_arr'], 'logger': lg.logger}
                     
-    lrn_crv_trn_kwargs = { 'framework': args['framework'], 'mltype': mltype, 'ml_model_def': ml_model_def,
+    lrn_crv_trn_kwargs = { 'framework': args['framework'], 'mltype': mltype,
                            'n_jobs': args['n_jobs'], 'random_state': args['seed'],
-                           ## 'model_name': args['model_name'],
-                           'ml_model_def': ml_model_def}
+                           'ml_model_def': ml_model_def, 'keras_callbacks_def': keras_callbacks_def}
     
     # LC object
-    lc = LearningCurve( X=xdata, Y=ydata, meta=meta, **lrn_crv_init_kwargs )        
+    lc_obj = LearningCurve( X=xdata, Y=ydata, meta=meta, **lrn_crv_init_kwargs )        
 
     if args['hp_file'] is None:
         # The regular workflow where all subsets are trained with the same HPs
-        # model_init_kwargs, model_fit_kwargs = get_model_kwargs( args )
-        # lrn_crv_trn_kwargs['init_kwargs'] = model_init_kwargs
-        # lrn_crv_trn_kwargs['fit_kwargs'] = model_fit_kwargs
-
         lrn_crv_trn_kwargs['init_kwargs'] = ml_init_args
         lrn_crv_trn_kwargs['fit_kwargs'] = ml_fit_args
-        
-        lrn_crv_scores = lc.trn_learning_curve( **lrn_crv_trn_kwargs )
+        lc_scores = lc_obj.trn_learning_curve( **lrn_crv_trn_kwargs )
     else:
         # The workflow follows PS-HPO where we a the set HPs per subset.
         # In this case we need to call the trn_learning_curve() method for
@@ -307,14 +274,14 @@ def run(args):
         lg.logger.info( df_print )
 
         # Find the intersect btw available and requested tr sizes
-        tr_sizes = list( set(lc.tr_shards).intersection(set(hp['tr_size'].unique())) )
+        tr_sizes = list( set(lc_obj.tr_shards).intersection(set(hp['tr_size'].unique())) )
         lg.logger.info('\nIntersect btw available and requested tr sizes: {}'.format( tr_sizes ))
 
-        lrn_crv_scores = []
+        lc_scores = []
         for sz in tr_sizes:
             prm = hp[hp['tr_size']==sz]
             lrn_crv_init_kwargs['shards_arr'] = [sz]
-            lc.tr_shards = [sz] 
+            lc_obj.tr_shards = [sz] 
             
             # Update model_init and model_fit params
             prm = prm.to_dict(orient='records')[0]  # unroll single-raw df into dict
@@ -330,29 +297,30 @@ def run(args):
             lrn_crv_trn_kwargs['init_kwargs'] = model_init_kwargs
             lrn_crv_trn_kwargs['fit_kwargs'] = model_fit_kwargs
 
-            per_subset_scores = lc.trn_learning_curve( **lrn_crv_trn_kwargs )
-            lrn_crv_scores.append( per_subset_scores )
+            per_subset_scores = lc_obj.trn_learning_curve( **lrn_crv_trn_kwargs )
+            lc_scores.append( per_subset_scores )
 
         # Concat per-subset scores 
-        lrn_crv_scores = pd.concat(lrn_crv_scores, axis=0)
+        lc_scores = pd.concat(lc_scores, axis=0)
 
         # Save tr, vl, te separently
-        lrn_crv_scores[ lrn_crv_scores['set']=='tr' ].to_csv( args['rout']/'tr_lrn_crv_scores.csv', index=False) 
-        lrn_crv_scores[ lrn_crv_scores['set']=='vl' ].to_csv( args['rout']/'vl_lrn_crv_scores.csv', index=False) 
-        lrn_crv_scores[ lrn_crv_scores['set']=='te' ].to_csv( args['rout']/'te_lrn_crv_scores.csv', index=False) 
+        lc_scores[ lc_scores['set']=='tr' ].to_csv( args['rout']/'tr_lc_scores.csv', index=False) 
+        lc_scores[ lc_scores['set']=='vl' ].to_csv( args['rout']/'vl_lc_scores.csv', index=False) 
+        lc_scores[ lc_scores['set']=='te' ].to_csv( args['rout']/'te_lc_scores.csv', index=False) 
 
     # Dump all scores
-    lrn_crv_scores.to_csv( args['rout']/'lrn_crv_scores.csv', index=False)
+    lc_scores.to_csv( args['rout']/'lc_scores.csv', index=False)
 
     # Load results and plot
-    lrn_crv_plot.plot_lrn_crv_all_metrics( lrn_crv_scores, outdir=args['rout'] )
-    lrn_crv_plot.plot_lrn_crv_all_metrics( lrn_crv_scores, outdir=args['rout'], xtick_scale='log2', ytick_scale='log2' )
+    lrn_crv_plot.plot_lc_all_metrics( lc_scores, outdir=args['rout'] )
+    lrn_crv_plot.plot_lc_all_metrics( lc_scores, outdir=args['rout'], xtick_scale='log2', ytick_scale='log2' )
     
     # Dump args
     dump_dict(args, outpath=args['rout']/'args.txt')
     
     
     # ====================================
+    """
     if args['plot_fit']:
         figsize = (7, 5.5)
         metric_name = 'mean_absolute_error'
@@ -414,8 +382,9 @@ def run(args):
 
         ax.legend(frameon=True, fontsize=10, loc='best')
         plt.savefig(args['outdir']/f'power_law_ext_{metric_name}.png')
-
+    """
     # ====================================
+    
     if (time()-t0)//3600 > 0:
         print_fn('Runtime: {:.1f} hrs'.format( (time()-t0)/3600) )
     else:

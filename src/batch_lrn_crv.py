@@ -1,9 +1,10 @@
 """
-A batch prcoessing code that calls main_data_split.py with the same set of parameters
-but different datasets.
+A batch prcoessing that calls main_data_split.py with the same set of parameters
+but different split ids. This code uses the joblib Parallel.
 
 For example:
 python src/batch_lrn_crv.py --splitdir data/docking_data_march_30/ml.3CLPro_pocket1_dock.splits --datapath data/docking_data_march_30/ml.3CLPro_pocket1_dock.parquet --n_splits 40 --n_shards 10 --par_jobs 40
+python src/batch_lrn_crv.py --splitdir data/docking_data_march_30/ml.ADRP-ADPR_pocket1_dock.splits --datapath data/docking_data_march_30/ml.ADRP-ADPR_pocket1_dock.parquet --n_splits 40 --n_shards 10 --par_jobs 40
 """
 import warnings
 warnings.filterwarnings('ignore')

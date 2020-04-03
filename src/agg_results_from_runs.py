@@ -5,6 +5,7 @@ This script aggregates LC results from different runs (i.e., different data spli
 
 Example:
 python src/agg_results_from_runs.py --res_dir trn/ml.ADRP_pocket1_dock.lc/
+python src/agg_results_from_runs.py --res_dir trn/ml.ADRP-ADPR_pocket1_dock.lc/
 """
 from __future__ import print_function, division
 
@@ -29,7 +30,6 @@ import lightgbm as lgb
 filepath = Path(__file__).resolve().parent
 
 # Utils
-from learningcurve.lrn_crv import LearningCurve
 from learningcurve.lrn_crv_plot import plot_lc_agg
     
         
@@ -74,7 +74,7 @@ def agg_scores(run_dirs, prfx='run'):
 
 def run(args):
     res_dir = Path( args['res_dir'] ).resolve()
-    trg_name = res_dir.name.split('.')[1]
+    dir_name = res_dir.name # .split('.')[1]
     
     run_dirs = glob( str(res_dir/'run*') )
     prfx = 'run'
@@ -99,13 +99,13 @@ def run(args):
         plot_args = {'xtick_scale': 'log2', 'ytick_scale': 'log2'}
         ax = plot_lc_agg(scores, metric_name=metric_name, prfx=prfx, tr_set='te', **plot_args)
 
-        ax.set_title( trg_name )
+        ax.set_title( dir_name )
         ax.legend(frameon=True, fontsize=10, loc='best')
         ax.grid(True)
         plt.tight_layout()
 
         # Save
-        plt.savefig(res_dir/(f'lc.{trg_name}.{metric_name}.png'), dpi=200)
+        plt.savefig(res_dir/(f'lc.{dir_name}.{metric_name}.png'), dpi=200)
     
 
 def main(args):

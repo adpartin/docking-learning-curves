@@ -2,7 +2,6 @@ from pathlib import Path
 import sklearn
 import numpy as np
 import pandas as pd
-# from math import sqrt
 
 
 def calc_preds(model, x, y, mltype):

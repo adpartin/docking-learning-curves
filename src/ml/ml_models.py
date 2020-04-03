@@ -43,7 +43,7 @@ try:
         from tensorflow.python.keras.models import Sequential, Model, model_from_json, model_from_yaml
         from tensorflow.python.keras.utils import np_utils, multi_gpu_model
 except:
-   print('Could not import tensorflow.')
+    print('Could not import tensorflow.')
 
 # # import keras
 # from keras import backend as K

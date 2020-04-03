@@ -29,23 +29,23 @@ from pandas.api.types import is_string_dtype
 from sklearn.preprocessing import LabelEncoder
 from sklearn.externals import joblib
 
-try:
-    import tensorflow as tf
-    # print(tf.__version__)
-    if int(tf.__version__.split('.')[0]) < 2:
-        # print('Load keras standalone package.')
-        import keras
-        from keras.models import load_model
-        from keras.callbacks import ModelCheckpoint, CSVLogger, ReduceLROnPlateau, EarlyStopping, TensorBoard
-        from keras.utils import plot_model
-    else:
-        # print('Load keras from tf.')
-        # from tensorflow import keras
-        from tensorflow.python.keras.models import load_model
-        from tensorflow.python.keras.callbacks import ModelCheckpoint, CSVLogger, ReduceLROnPlateau, EarlyStopping, TensorBoard
-        from tensorflow.python.keras.utils import plot_model
-except:
-    print('Could not import tensorflow.')
+# try:
+#     import tensorflow as tf
+#     # print(tf.__version__)
+#     if int(tf.__version__.split('.')[0]) < 2:
+#         # print('Load keras standalone package.')
+#         import keras
+#         from keras.models import load_model
+#         from keras.callbacks import ModelCheckpoint, CSVLogger, ReduceLROnPlateau, EarlyStopping, TensorBoard
+#         from keras.utils import plot_model
+#     else:
+#         # print('Load keras from tf.')
+#         # from tensorflow import keras
+#         from tensorflow.python.keras.models import load_model
+#         from tensorflow.python.keras.callbacks import ModelCheckpoint, CSVLogger, ReduceLROnPlateau, EarlyStopping, TensorBoard
+#         from tensorflow.python.keras.utils import plot_model
+# except:
+#     print('Could not import tensorflow.')
 
 # import keras
 # from keras.models import load_model
@@ -57,11 +57,12 @@ filepath = Path(__file__).resolve().parent
 sys.path.append( os.path.abspath(filepath/'../ml') )
 sys.path.append( os.path.abspath(filepath/'../utils') )
 sys.path.append( os.path.abspath(filepath/'../datasplit') )
-import ml.ml_models as ml_models
+
+# import ml.ml_models as ml_models
+from ml.keras_utils import save_krs_history, plot_prfrm_metrics, r2_krs
 from ml.evals import calc_preds, calc_scores, dump_preds
 from utils.utils import get_print_func, dump_dict
 from utils.plots import plot_hist, plot_runtime
-# from split_getter import get_data_by_id, # get_unq_split_ids
 
 
 # --------------------------------------------------------------------------------
@@ -70,7 +71,7 @@ class LearningCurve():
     Train estimator using multiple shards (train set sizes) and generate learning curves for multiple performance metrics.
     Example:
         lc = LearningCurve(xdata, ydata, cv_lists=(tr_ids, vl_ids))
-        lrn_crv_scores = lc.trn_learning_curve(
+        lc_scores = lc.trn_learning_curve(
             framework=framework, mltype=mltype, model_name=model_name,
             init_kwargs=init_kwargs, fit_kwargs=fit_kwargs, clr_keras_kwargs=clr_keras_kwargs)
     """
@@ -277,7 +278,8 @@ class LearningCurve():
             ## model_name: str, # 'lgb_reg'
 
             ml_model_def,
-                           
+            keras_callbacks_def,
+
             init_kwargs: dict={},
             fit_kwargs: dict={},
             ## clr_keras_kwargs: dict={},
@@ -299,6 +301,7 @@ class LearningCurve():
         ## self.model_name = model_name
         
         self.ml_model_def = ml_model_def
+        self.keras_callbacks_def = keras_callbacks_def
         
         self.init_kwargs = init_kwargs
         self.fit_kwargs = fit_kwargs
@@ -331,6 +334,11 @@ class LearningCurve():
             xvl, yvl, mvl = self.get_data_by_id(vl_id) # fixed set of VAL samples for the current CV split
             xte, yte, mte = self.get_data_by_id(te_id) # fixed set of TEST samples for the current CV split
 
+            xvl = np.asarray(xvl)
+            yvl = np.asarray(yvl)
+            xte = np.asarray(xte)
+            yte = np.asarray(yte)            
+            
             # Shards loop (iterate across the dataset sizes and train)
             """
             np.random.seed(random_state)
@@ -351,9 +359,10 @@ class LearningCurve():
                 ytr_sub = ytr.iloc[:tr_sz]
                 mtr_sub = mtr.iloc[:tr_sz, :]
                 
+                xtr_sub = np.asarray(xtr_sub)
+                ytr_sub = np.asarray(ytr_sub)                
+                
                 # Get the estimator
-                ## estimator = ml_models.get_model(self.model_name, init_kwargs=self.init_kwargs)
-                ## model = estimator.model
                 model = self.ml_model_def( **self.init_kwargs )
                 
                 # Train
@@ -378,7 +387,6 @@ class LearningCurve():
                     continue # sometimes keras fails to train a model (evaluates to nan)
 
                 # Dump args
-                ## dump_dict(self.args, trn_outdir/'args.txt') 
                 model_args = self.init_kwargs.copy()
                 model_args.update( self.fit_kwargs )
                 dump_dict(model_args, trn_outdir/'model_args.txt') 
@@ -433,7 +441,7 @@ class LearningCurve():
                 
             # Dump intermediate results (this is useful if the run terminates before run ends)
             scores_all_df_tmp = pd.concat([scores_to_df(tr_scores_all), scores_to_df(vl_scores_all), scores_to_df(te_scores_all)], axis=0)
-            scores_all_df_tmp.to_csv( self.outdir / ('tmp_lrn_crv_scores_cv' + str(fold_num) + '.csv'), index=False )
+            scores_all_df_tmp.to_csv( self.outdir / ('tmp_lc_scores_cv' + str(fold_num) + '.csv'), index=False )
 
         # Scores to df
         tr_scores_df = scores_to_df( tr_scores_all )
@@ -442,10 +450,10 @@ class LearningCurve():
         scores_df = pd.concat([tr_scores_df, vl_scores_df, te_scores_df], axis=0)
         
         # Dump final results
-        tr_scores_df.to_csv( self.outdir/'tr_lrn_crv_scores.csv', index=False) 
-        vl_scores_df.to_csv( self.outdir/'vl_lrn_crv_scores.csv', index=False) 
-        te_scores_df.to_csv( self.outdir/'te_lrn_crv_scores.csv', index=False) 
-        scores_df.to_csv( self.outdir/'lrn_crv_scores.csv', index=False) 
+        tr_scores_df.to_csv( self.outdir/'tr_lc_scores.csv', index=False) 
+        vl_scores_df.to_csv( self.outdir/'vl_lc_scores.csv', index=False) 
+        te_scores_df.to_csv( self.outdir/'te_lc_scores.csv', index=False) 
+        scores_df.to_csv( self.outdir/'lc_scores.csv', index=False) 
 
         # Runtime df
         runtime_df = pd.DataFrame.from_records(runtime_records, columns=['fold', 'tr_sz', 'time'])
@@ -477,27 +485,22 @@ class LearningCurve():
         """ Train and save Keras model. """
         trn_outdir = self.create_trn_outdir(fold, tr_sz)
         # keras.utils.plot_model(model, to_file=self.outdir/'nn_model.png') # comment this when using Theta
-        
-        # Keras callbacks
-        keras_callbacks = define_keras_callbacks(trn_outdir) # TODO: this can be in the main (calling) script
-        
+                
         # if bool(self.clr_keras_kwargs):
         ## if self.clr_keras_kwargs['mode'] is not None:
         ##     keras_callbacks.append( ml_models.clr_keras_callback(**self.clr_keras_kwargs) )
 
         # Fit params
-        # fit_kwargs = self.fit_kwargs
-        fit_kwargs = self.fit_kwargs.copy() # TODO: why do we make a copy??
+        fit_kwargs = self.fit_kwargs.copy()
         fit_kwargs['validation_data'] = eval_set
-        fit_kwargs['callbacks'] = keras_callbacks # TODO: this can be in the main (calling) script
+        fit_kwargs['callbacks'] = self.keras_callbacks_def( trn_outdir )
         
         # Train model
         t0 = time()
         history = model.fit(xtr_sub, ytr_sub, **fit_kwargs)
         runtime = (time() - t0)/60
-        # TODO: add these methods to keras_utils
-        ml_models.save_krs_history(history, outdir=trn_outdir)
-        ml_models.plot_prfrm_metrics(history, title=f'Train size: {tr_sz}', skp_ep=10, add_lr=True, outdir=trn_outdir)
+        save_krs_history(history, outdir=trn_outdir)
+        plot_prfrm_metrics(history, title=f'Train size: {tr_sz}', skp_ep=10, add_lr=True, outdir=trn_outdir)
 
         # Remove key (we'll dump this dict so we don't need to print all the eval set)
         # fit_kwargs.pop('validation_data', None)
@@ -505,9 +508,12 @@ class LearningCurve():
 
         # Load the best model (https://github.com/keras-team/keras/issues/5916)
         # model = keras.models.load_model(str(trn_outdir/'model_best.h5'), custom_objects={'r2_krs': ml_models.r2_krs})
-        model_path = trn_outdir/'model_best.h5'
+        model_path = trn_outdir / 'model_best.h5'
         if model_path.exists():
-            model = keras.models.load_model( str(model_path) )
+            # model = keras.models.load_model( str(model_path) )
+            import tensorflow as tf
+            model = tf.keras.models.load_model( str(model_path),
+                                                custom_objects={'r2_krs': r2_krs} )
         else:
             model = None
         return model, trn_outdir, runtime
@@ -518,14 +524,8 @@ class LearningCurve():
         trn_outdir = self.create_trn_outdir(fold, tr_sz)
         
         # Fit params
-        fit_kwargs = self.fit_kwargs
-        # fit_kwargs = self.fit_kwargs.copy()
-        fit_kwargs['eval_set'] = eval_set
-        # fit_kwargs['early_stopping_rounds'] = 10
-
-        # (debug)
-        # ytr_avg_true = np.mean(ytr_sub)
-        # yvl_avg_pred = np.mean(eval_set[1])        
+        fit_kwargs = self.fit_kwargs.copy()
+        fit_kwargs['eval_set'] = eval_set  
         
         # Train and save model
         t0 = time()
@@ -562,18 +562,6 @@ class LearningCurve():
         os.makedirs(trn_outdir, exist_ok=True)
         return trn_outdir
 # --------------------------------------------------------------------------------
-
-
-def define_keras_callbacks(outdir, ref_metric='val_mean_absolute_error'):
-    checkpointer = ModelCheckpoint(str(outdir/'model_best.h5'), monitor='val_loss', verbose=0, save_weights_only=False, save_best_only=True)
-    csv_logger = CSVLogger(outdir/'training.log')
-    # reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.75, patience=20, verbose=1, mode='auto',
-                                  # min_delta=0.0001, cooldown=3, min_lr=0.000000001)
-    reduce_lr = ReduceLROnPlateau(monitor=ref_metric, factor=0.75, patience=25, verbose=1, mode='auto',
-                                  min_delta=0.0001, cooldown=3, min_lr=0.000000001)
-    # early_stop = EarlyStopping(monitor='val_loss', patience=50, verbose=1)
-    early_stop = EarlyStopping(monitor=ref_metric, patience=50, verbose=1)
-    return [checkpointer, csv_logger, early_stop, reduce_lr]
 
 
 def scores_to_df(scores_all):
