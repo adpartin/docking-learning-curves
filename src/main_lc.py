@@ -249,8 +249,8 @@ def run(args):
 
     if args['hp_file'] is None:
         # The regular workflow where all subsets are trained with the same HPs
-        lc_trn_args['init_args'] = ml_init_args
-        lc_trn_args['fit_args'] = ml_fit_args
+        lc_trn_args['ml_init_args'] = ml_init_args
+        lc_trn_args['ml_fit_args'] = ml_fit_args
         lc_scores = lc_obj.trn_learning_curve( **lc_trn_args )
     else:
         # The workflow follows PS-HPO where we a the set HPs per subset.
@@ -293,9 +293,9 @@ def run(args):
                 print_fn('{}: set to {}'.format(n, prm[n]))
                 args[n] = prm[n]
 
-            model_init_args, model_fit_args = get_model_args(args)
-            lc_trn_args['init_args'] = ml_init_args
-            lc_trn_args['fit_args'] = ml_fit_args
+            ml_init_args, ml_fit_args = get_model_args(args)
+            lc_trn_args['ml_init_args'] = ml_init_args
+            lc_trn_args['ml_fit_args'] = ml_fit_args
 
             per_subset_scores = lc_obj.trn_learning_curve( **lc_trn_args )
             lc_scores.append( per_subset_scores )

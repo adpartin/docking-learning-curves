@@ -73,7 +73,7 @@ class LearningCurve():
         lc = LearningCurve(xdata, ydata, cv_lists=(tr_ids, vl_ids))
         lc_scores = lc.trn_learning_curve(
             framework=framework, mltype=mltype, model_name=model_name,
-            init_args=init_args, fit_args=fit_args, clr_keras_args=clr_keras_args)
+            ml_init_args=ml_init_args, ml_fit_args=ml_fit_args, clr_keras_args=clr_keras_args)
     """
     def __init__(self,
             X, Y,
@@ -281,8 +281,8 @@ class LearningCurve():
             ml_model_def,
             keras_callbacks_def,
 
-            init_args: dict={},
-            fit_args: dict={},
+            ml_init_args: dict={},
+            ml_fit_args: dict={},
             ## clr_keras_args: dict={},
             metrics: list=['r2', 'neg_mean_absolute_error', 'neg_median_absolute_error', 'neg_mean_squared_error'],
             n_jobs: int=4,
@@ -292,8 +292,8 @@ class LearningCurve():
         Args:
             framework : ml framework (keras, lightgbm, or sklearn)
             mltype : type to ml problem (reg or cls)
-            init_args : dict of parameters that initializes the estimator
-            fit_args : dict of parameters to the estimator's fit() method
+            ml_init_args : dict of parameters that initializes the estimator
+            ml_fit_args : dict of parameters to the estimator's fit() method
             clr_keras_args : 
             metrics : allow to pass a string of metrics  TODO!
         """
@@ -304,8 +304,8 @@ class LearningCurve():
         self.ml_model_def = ml_model_def
         self.keras_callbacks_def = keras_callbacks_def
         
-        self.init_args = init_args
-        self.fit_args = fit_args
+        self.ml_init_args = ml_init_args
+        self.ml_fit_args = ml_fit_args
         ## self.clr_keras_args = clr_keras_args
         self.metrics = metrics
         self.n_jobs = n_jobs
@@ -364,7 +364,7 @@ class LearningCurve():
                 ytr_sub = np.asarray(ytr_sub)                
                 
                 # Get the estimator
-                model = self.ml_model_def( **self.init_args )
+                model = self.ml_model_def( **self.ml_init_args )
                 
                 # Train
                 # TODO: consider to pass and function train_model that will be used to train model and return
@@ -388,8 +388,8 @@ class LearningCurve():
                     continue # sometimes keras fails to train a model (evaluates to nan)
 
                 # Dump args
-                model_args = self.init_args.copy()
-                model_args.update( self.fit_args )
+                model_args = self.ml_init_args.copy()
+                model_args.update( self.ml_fit_args )
                 dump_dict(model_args, trn_outdir/'model_args.txt') 
 
                 # Save plot of target distribution
@@ -492,20 +492,20 @@ class LearningCurve():
         ##     keras_callbacks.append( ml_models.clr_keras_callback(**self.clr_keras_args) )
 
         # Fit params
-        fit_args = self.fit_args.copy()
-        fit_args['validation_data'] = eval_set
-        fit_args['callbacks'] = self.keras_callbacks_def( trn_outdir )
+        ml_fit_args = self.ml_fit_args.copy()
+        ml_fit_args['validation_data'] = eval_set
+        ml_fit_args['callbacks'] = self.keras_callbacks_def( trn_outdir )
         
         # Train model
         t0 = time()
-        history = model.fit(xtr_sub, ytr_sub, **fit_args)
+        history = model.fit(xtr_sub, ytr_sub, **ml_fit_args)
         runtime = (time() - t0)/60
         save_krs_history(history, outdir=trn_outdir)
         plot_prfrm_metrics(history, title=f'Train size: {tr_sz}', skp_ep=10, add_lr=True, outdir=trn_outdir)
 
         # Remove key (we'll dump this dict so we don't need to print all the eval set)
-        # fit_args.pop('validation_data', None)
-        # fit_args.pop('callbacks', None)
+        # ml_fit_args.pop('validation_data', None)
+        # ml_fit_args.pop('callbacks', None)
 
         # Load the best model (https://github.com/keras-team/keras/issues/5916)
         # model = keras.models.load_model(str(trn_outdir/'model_best.h5'), custom_objects={'r2_krs': ml_models.r2_krs})
@@ -525,16 +525,16 @@ class LearningCurve():
         trn_outdir = self.create_trn_outdir(fold, tr_sz)
         
         # Fit params
-        fit_args = self.fit_args.copy()
-        fit_args['eval_set'] = eval_set  
+        ml_fit_args = self.ml_fit_args.copy()
+        ml_fit_args['eval_set'] = eval_set  
         
         # Train and save model
         t0 = time()
-        model.fit(xtr_sub, ytr_sub, **fit_args)
+        model.fit(xtr_sub, ytr_sub, **ml_fit_args)
         runtime = (time() - t0)/60
 
         # Remove key (we'll dump this dict so we don't need to print all the eval set)
-        fit_args.pop('eval_set', None)
+        ml_fit_args.pop('eval_set', None)
 
         if self.save_model:
             joblib.dump(model, filename = trn_outdir / ('model.'+self.model_name+'.pkl') )
@@ -546,12 +546,12 @@ class LearningCurve():
         trn_outdir = self.create_trn_outdir(fold, tr_sz)
         
         # Fit params
-        fit_args = self.fit_args
-        # fit_args = self.fit_args.copy()
+        ml_fit_args = self.ml_fit_args
+        # ml_fit_args = self.ml_fit_args.copy()
 
         # Train and save model
         t0 = time()
-        model.fit(xtr_sub, ytr_sub, **fit_args)
+        model.fit(xtr_sub, ytr_sub, **ml_fit_args)
         runtime = (time() - t0)/60
         if self.save_model:
             joblib.dump(model, filename = trn_outdir / ('model.'+self.model_name+'.pkl') )
