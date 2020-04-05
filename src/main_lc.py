@@ -4,8 +4,8 @@ You need to specify:
 1. Function that creates the ML model.
    For example:
    
-    def my_lgbm_classifier(**kwargs):
-        model = lightgbm.LGBMClassifier(**kwargs)
+    def my_lgbm_classifier(**args):
+        model = lightgbm.LGBMClassifier(**args)
         return model
     
     def my_dnn(input_dim, dr_rate=0.2, lr=0.001, initializer='he_uniform', batchnorm=False):
@@ -61,7 +61,7 @@ from ml.data import extract_subset_fea
 
 import learningcurve as lc
 from learningcurve.lrn_crv import LearningCurve
-import learningcurve.lrn_crv_plot as lrn_crv_plot 
+import learningcurve.lc_plots as lc_plots 
     
 
 def parse_args(args):
@@ -210,7 +210,7 @@ def run(args):
     #      ML model configs
     # -----------------------------------------------
     # CLR settings
-    ## clr_keras_kwargs = {'mode': args['clr_mode'], 'base_lr': args['clr_base_lr'],
+    ## clr_keras_args = {'mode': args['clr_mode'], 'base_lr': args['clr_base_lr'],
     ##                     'max_lr': args['clr_max_lr'], 'gamma': args['clr_gamma']}       
 
     # LGBM regressor model def
@@ -235,23 +235,23 @@ def run(args):
     #      Learning curve 
     # -----------------------------------------------        
     # LC args
-    lc_init_kwargs = { 'cv': None, 'cv_lists': (tr_id, vl_id, te_id),
-                       'lc_step_scale': args['lc_step_scale'], 'n_shards': args['n_shards'],
-                       'min_shard': args['min_shard'], 'max_shard': args['max_shard'],
-                       'outdir': args['rout'], 'shards_arr': args['shards_arr'], 'logger': lg.logger}
+    lc_init_args = { 'cv': None, 'cv_lists': (tr_id, vl_id, te_id),
+                     'lc_step_scale': args['lc_step_scale'], 'n_shards': args['n_shards'],
+                     'min_shard': args['min_shard'], 'max_shard': args['max_shard'],
+                     'outdir': args['rout'], 'shards_arr': args['shards_arr'], 'print_fn': print_fn}
                     
-    lc_trn_kwargs = { 'framework': args['framework'], 'mltype': mltype,
-                      'n_jobs': args['n_jobs'], 'random_state': args['seed'],
-                      'ml_model_def': ml_model_def, 'keras_callbacks_def': keras_callbacks_def}
+    lc_trn_args = { 'framework': args['framework'], 'mltype': mltype,
+                    'n_jobs': args['n_jobs'], 'random_state': args['seed'],
+                    'ml_model_def': ml_model_def, 'keras_callbacks_def': keras_callbacks_def}
 
     # LC object
-    lc_obj = LearningCurve( X=xdata, Y=ydata, meta=meta, **lc_init_kwargs )
+    lc_obj = LearningCurve( X=xdata, Y=ydata, meta=meta, **lc_init_args )
 
     if args['hp_file'] is None:
         # The regular workflow where all subsets are trained with the same HPs
-        lc_trn_kwargs['init_kwargs'] = ml_init_args
-        lc_trn_kwargs['fit_kwargs'] = ml_fit_args
-        lc_scores = lc_obj.trn_learning_curve( **lc_trn_kwargs )
+        lc_trn_args['init_args'] = ml_init_args
+        lc_trn_args['fit_args'] = ml_fit_args
+        lc_scores = lc_obj.trn_learning_curve( **lc_trn_args )
     else:
         # The workflow follows PS-HPO where we a the set HPs per subset.
         # In this case we need to call the trn_learning_curve() method for
@@ -271,33 +271,33 @@ def run(args):
 
         # Params of interest
         df_print = hp[ prm_names + ['tr_size', 'mean_absolute_error'] ]
-        lg.logger.info( df_print )
+        print_fn( df_print )
 
         # Find the intersect btw available and requested tr sizes
         tr_sizes = list( set(lc_obj.tr_shards).intersection(set(hp['tr_size'].unique())) )
-        lg.logger.info('\nIntersect btw available and requested tr sizes: {}'.format( tr_sizes ))
+        print_fn('\nIntersect btw available and requested tr sizes: {}'.format( tr_sizes ))
 
         lc_scores = []
         for sz in tr_sizes:
             prm = hp[hp['tr_size']==sz]
-            lrn_crv_init_kwargs['shards_arr'] = [sz]
+            lrn_crv_init_args['shards_arr'] = [sz]
             lc_obj.tr_shards = [sz] 
             
             # Update model_init and model_fit params
             prm = prm.to_dict(orient='records')[0]  # unroll single-raw df into dict
                 
             # Update args
-            lg.logger.info('\nUpdate args for tr size {}'.format(sz))
-            lg.logger.info( df_print[ df_print['tr_size']==sz ] )
+            print_fn('\nUpdate args for tr size {}'.format(sz))
+            print_fn( df_print[ df_print['tr_size']==sz ] )
             for n in prm_names:
-                lg.logger.info('{}: set to {}'.format(n, prm[n]))
+                print_fn('{}: set to {}'.format(n, prm[n]))
                 args[n] = prm[n]
 
-            model_init_kwargs, model_fit_kwargs = get_model_kwargs(args)
-            lrn_crv_trn_kwargs['init_kwargs'] = model_init_kwargs
-            lrn_crv_trn_kwargs['fit_kwargs'] = model_fit_kwargs
+            model_init_args, model_fit_args = get_model_args(args)
+            lc_trn_args['init_args'] = ml_init_args
+            lc_trn_args['fit_args'] = ml_fit_args
 
-            per_subset_scores = lc_obj.trn_learning_curve( **lrn_crv_trn_kwargs )
+            per_subset_scores = lc_obj.trn_learning_curve( **lc_trn_args )
             lc_scores.append( per_subset_scores )
 
         # Concat per-subset scores 
@@ -312,8 +312,8 @@ def run(args):
     lc_scores.to_csv( args['rout']/'lc_scores.csv', index=False)
 
     # Load results and plot
-    lrn_crv_plot.plot_lc_all_metrics( lc_scores, outdir=args['rout'] )
-    lrn_crv_plot.plot_lc_all_metrics( lc_scores, outdir=args['rout'], xtick_scale='log2', ytick_scale='log2' )
+    lc_plots.plot_lc_all_metrics( lc_scores, outdir=args['rout'] )
+    lc_plots.plot_lc_all_metrics( lc_scores, outdir=args['rout'], xtick_scale='log2', ytick_scale='log2' )
     
     # Dump args
     dump_dict(args, outpath=args['rout']/'args.txt')
@@ -336,14 +336,14 @@ def run(args):
         y_col_name = 'fold0'
         ax = None
 
-        ax = lrn_crv_plot.plot_lrn_crv_new(
+        ax = lc_plots.plot_lrn_crv_new(
                 x=scores_te['tr_size'][0:], y=scores_te[y_col_name][0:],
                 ax=ax, ls='', marker='v', alpha=0.7,
                 **plot_args, label='Raw Data')
 
         shard_min_idx = 0 if tot_pnts < n_pnts_fit else tot_pnts - n_pnts_fit
 
-        ax, _, gof = lrn_crv_plot.plot_lrn_crv_power_law(
+        ax, _, gof = lc_plots.plot_lrn_crv_power_law(
                 x=scores_te['tr_size'][shard_min_idx:], y=scores_te[y_col_name][shard_min_idx:],
                 **plot_args, plot_raw=False, ax=ax, alpha=1 );
 
@@ -363,19 +363,19 @@ def run(args):
         ax = None
 
         # Plot of all the points
-        ax = lrn_crv_plot.plot_lrn_crv_new(
+        ax = lc_plots.plot_lrn_crv_new(
                 x=scores_te['tr_size'][0:shard_min_idx], y=scores_te[y_col_name][0:shard_min_idx],
                 ax=ax, ls='', marker='v', alpha=0.8, color='k',
                 **plot_args, label='Excluded Points')
 
         # Plot of all the points
-        ax = lrn_crv_plot.plot_lrn_crv_new(
+        ax = lc_plots.plot_lrn_crv_new(
                 x=scores_te['tr_size'][shard_min_idx:m0], y=scores_te[y_col_name][shard_min_idx:m0],
                 ax=ax, ls='', marker='*', alpha=0.8, color='g',
                 **plot_args, label='Included Points')
 
         # Extrapolation
-        ax, _, mae_et = lrn_crv_plot.lrn_crv_power_law_extrapolate(
+        ax, _, mae_et = lc_plots.lrn_crv_power_law_extrapolate(
                 x=scores_te['tr_size'][shard_min_idx:], y=scores_te[y_col_name][shard_min_idx:],
                 n_pnts_ext=n_pnts_ext,
                 **plot_args, plot_raw_it=False, label_et='Extrapolation', ax=ax );

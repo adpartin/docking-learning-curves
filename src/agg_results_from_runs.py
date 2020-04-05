@@ -30,7 +30,7 @@ import lightgbm as lgb
 filepath = Path(__file__).resolve().parent
 
 # Utils
-from learningcurve.lrn_crv_plot import plot_lc_agg
+from learningcurve.lc_plots import plot_lc_agg
     
         
 def parse_args(args):

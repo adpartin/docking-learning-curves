@@ -1,10 +1,10 @@
 """
-A batch prcoessing that calls main_data_split.py with the same set of parameters
+A batch prcoessing that calls main_lc.py with the same set of parameters
 but different split ids. This code uses the joblib Parallel.
 
 For example:
-python src/batch_lrn_crv.py --splitdir data/docking_data_march_30/ml.3CLPro_pocket1_dock.splits --datapath data/docking_data_march_30/ml.3CLPro_pocket1_dock.parquet --n_splits 40 --n_shards 10 --par_jobs 40
-python src/batch_lrn_crv.py --splitdir data/docking_data_march_30/ml.ADRP-ADPR_pocket1_dock.splits --datapath data/docking_data_march_30/ml.ADRP-ADPR_pocket1_dock.parquet --n_splits 40 --n_shards 10 --par_jobs 40
+python src/batch_lc.py --splitdir data/docking_data_march_30/ml.3CLPro_pocket1_dock.splits --datapath data/docking_data_march_30/ml.3CLPro_pocket1_dock.parquet --n_splits 40 --n_shards 10 --par_jobs 40
+python src/batch_lc.py --splitdir data/docking_data_march_30/ml.ADRP-ADPR_pocket1_dock.splits --datapath data/docking_data_march_30/ml.ADRP-ADPR_pocket1_dock.parquet --n_splits 40 --n_shards 10 --par_jobs 40
 """
 import warnings
 warnings.filterwarnings('ignore')
@@ -21,7 +21,7 @@ from joblib import Parallel, delayed
 
 # File path
 filepath = Path(__file__).resolve().parent
-import main_lrn_crv
+import main_lc
 from datasplit.split_getter import get_unq_split_ids
 
 parser = argparse.ArgumentParser()
@@ -33,7 +33,7 @@ parser.add_argument('--par_jobs', default=1, type=int,
                     help=f'Number of joblib parallel jobs (default: 1).')
 args, other_args = parser.parse_known_args()
 
-# 'splitdir' is also required for the function main_lrn_crv()
+# 'splitdir' is also required for the function main_lc()
 other_args.extend(['--splitdir', args.splitdir]) 
 
 # Number of parallel jobs
@@ -54,7 +54,7 @@ n_splits = np.min([ len(unq_split_ids), args.n_splits ])
 
 # Main func designed primarily for joblib Parallel
 def gen_splits(split_id, *args):
-    main_lrn_crv.main([ '--split_id', str(split_id), *args ]) 
+    main_lc.main([ '--split_id', str(split_id), *args ]) 
 
 # Main execution
 t0 = time()
