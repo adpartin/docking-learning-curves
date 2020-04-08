@@ -3,15 +3,12 @@ The leaning curve methods currently support scikit-learn, LightGBM, and tf.keras
 ## Examples
 Running from command line:
 ```
-python src/main_lc.py --datapath data/dataframe.csv --n_shards 7 --n_splits 3 --gout ./trn_lc --trg_name reg
 python src/main_lc.py --datapath data/docking_data_march_30/ml.ADRP-ADPR_pocket1_dock.parquet --n_splits 3 --n_shards 7 --max_shard 185000 --gout ./trn_lc --trg_name reg
 ```
 
 Parallel execusion (need to pre-compute the data splits and provide the path):
 ```
-python src/batch_lc.py --splitdir data/docking_data_march_30/ml.3CLPro_pocket1_dock.splits \
-	--datapath data/docking_data_march_30/ml.3CLPro_pocket1_dock.parquet \
-	--n_splits 30 --par_jobs 10 --gout ./trn_lc
+python src/batch_lc.py --datapath data/docking_data_march_30/ml.ADRP-ADPR_pocket1_dock.parquet --splitdir data/docking_data_march_30/ml.ADRP-ADPR_pocket1_dock.splits --n_splits 10 --n_shards 7 --gout ./trn_lc_batch --trg_name reg --par_jobs 10
 ```
 
 Aggregate results from parallel execusion and plot learning curves:
