@@ -71,10 +71,13 @@ def parse_args(args):
     parser.add_argument('-dp', '--datapath', required=True, default=None, type=str,
                         help='Full path to data (default: None).')
 
-    # Data splits
-    parser.add_argument('-sd', '--splitdir', required=True, default=None, type=str,
+    # Pre-computed data splits
+    parser.add_argument('-sd', '--splitdir', default=None, type=str,
                         help='Full path to data splits (default: None).')
     parser.add_argument('--split_id', default=0, type=int, help='Split id (default: 0).')
+
+    # Number of data splits ()
+    parser.add_argument('--n_splits', default=1, type=int, help='Number of splits for which to generate learning curves. This is used only if pre-computed splits were not provided (default: 3).')
     
     # Outdir
     parser.add_argument('--gout', default=None, type=str,
@@ -127,7 +130,11 @@ def parse_args(args):
 def run(args):
     t0 = time()
     datapath = Path( args['datapath'] ).resolve()
-    splitdir = Path( args['splitdir'] ).resolve()
+
+    if args['splitdir'] is None:
+        splitdir = None
+    else:
+        splitdir = Path( args['splitdir'] ).resolve()
     split_id = args['split_id']
 
     # ML type ('reg' or 'cls')
@@ -144,7 +151,7 @@ def run(args):
     #       Global outdir
     # -----------------------------------------------
     if args['gout'] is not None:
-        gout = Path( args['gout'] )
+        gout = Path( args['gout'] ).resolve()
     else:
         gout = filepath.parent / 'trn'
         gout = gout / datapath.with_suffix('.lc').name
@@ -157,16 +164,18 @@ def run(args):
     if args['rout'] is not None:
         rout = gout / args['rout']
     else:
-        rout = gout / f'run_{split_id}'
+        if splitdir is None:
+            rout = gout / f'run'
+        else:
+            rout = gout / f'run_{split_id}'
         args['rout'] = rout
     os.makedirs(rout, exist_ok=True)
     
     # -----------------------------------------------
     #       Logger
     # -----------------------------------------------
-    ## lg = Logger(gout/'lc.log')
-    lg = Logger(rout/'lc.log')
-    print_fn = get_print_func(lg.logger)
+    lg = Logger( rout/'lc.log' )
+    print_fn = get_print_func( lg.logger )
     print_fn(f'File path: {filepath}')
     print_fn(f'\n{pformat(args)}')
     dump_dict(args, outpath=rout/'trn.args.txt') # dump args.
@@ -193,18 +202,23 @@ def run(args):
     # -----------------------------------------------
     #       Data splits
     # -----------------------------------------------
-    split_pattern = f'1fold_s{split_id}_*_id.csv'
-    single_split_files = glob( str(splitdir/split_pattern) )
+    if splitdir is None:
+        cv_lists = None
+    else:
+        split_pattern = f'1fold_s{split_id}_*_id.csv'
+        single_split_files = glob( str(splitdir/split_pattern) )
 
-    # Get indices for the split
-    assert len(single_split_files) >= 2, f'The split {s} contains only one file.'
-    for id_file in single_split_files:
-        if 'tr_id' in id_file:
-            tr_id = load_data( id_file )
-        elif 'vl_id' in id_file:
-            vl_id = load_data( id_file )
-        elif 'te_id' in id_file:
-            te_id = load_data( id_file )    
+        # Get indices for the split
+        assert len(single_split_files) >= 2, f'The split {s} contains only one file.'
+        for id_file in single_split_files:
+            if 'tr_id' in id_file:
+                tr_id = load_data( id_file )
+            elif 'vl_id' in id_file:
+                vl_id = load_data( id_file )
+            elif 'te_id' in id_file:
+                te_id = load_data( id_file )    
+
+        cv_lists = (tr_id, vl_id, te_id)
         
     # -----------------------------------------------
     #      ML model configs
@@ -221,6 +235,7 @@ def run(args):
                        'learning_rate': 0.1, 'num_leaves': 31,
                        'n_jobs': 8, 'random_state': args['seed'] }
     ml_fit_kwargs = {'verbose': False, 'early_stopping_rounds': 10}
+    keras_callbacks_def = None
 
     # Keras model def (reg_go)
     # from models.reg_go_model import reg_go_model_def, reg_go_callback_def
@@ -231,14 +246,16 @@ def run(args):
     # ml_init_kwargs = {'input_dim': xdata.shape[1], 'dr_rate': 0.1}
     # ml_fit_kwargs = {'epochs': 300, 'batch_size': 32, 'verbose': 1}
 
+
     # -----------------------------------------------
     #      Learning curve 
     # -----------------------------------------------        
     # LC args
-    lc_init_args = { 'cv': None, 'cv_lists': (tr_id, vl_id, te_id),
+    lc_init_args = { 'cv': None, 'cv_lists': cv_lists,
                      'lc_step_scale': args['lc_step_scale'], 'n_shards': args['n_shards'],
                      'min_shard': args['min_shard'], 'max_shard': args['max_shard'],
-                     'outdir': args['rout'], 'shards_arr': args['shards_arr'], 'print_fn': print_fn}
+                     'outdir': args['rout'], 'shards_arr': args['shards_arr'],
+                     'print_fn': print_fn}
                     
     lc_trn_args = { 'framework': args['framework'], 'mltype': mltype,
                     'n_jobs': args['n_jobs'], 'random_state': args['seed'],

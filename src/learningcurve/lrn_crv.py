@@ -81,9 +81,10 @@ class LearningCurve():
     def __init__(self,
             X, Y,
             meta=None,
-            cv=5,
+            # cv=5,
             cv_lists=None,  # (tr_id, vl_id, te_id)
             cv_folds_arr=None,
+            n_splits=1,
             lc_step_scale: str='log2',
             min_shard = 0,
             max_shard = None,
@@ -121,9 +122,11 @@ class LearningCurve():
         self.X = pd.DataFrame(X).reset_index(drop=True)
         self.Y = pd.DataFrame(Y).reset_index(drop=True)
         self.meta = pd.DataFrame(meta).reset_index(drop=True)
-        self.cv = cv
+
         self.cv_lists = cv_lists
         self.cv_folds_arr = cv_folds_arr
+
+        self.n_splits = n_splits
 
         self.lc_step_scale = lc_step_scale 
         self.min_shard = min_shard
