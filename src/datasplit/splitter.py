@@ -34,6 +34,8 @@ def data_splitter( n_splits=1, gout=None, outfigs=None, ydata=None,
         ydata : the target variable
         split_on : vol name in the dataframe to use for hard (group) partition
         print_fn : print function
+    Return:
+        tr_dct, vl_dct, te_dct : tuple of split dicts
     """
     seeds = np.random.choice(n_splits, n_splits, replace=False)
 

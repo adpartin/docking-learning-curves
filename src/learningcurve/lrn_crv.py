@@ -15,11 +15,6 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-# from sklearn.model_selection import train_test_split
-# from sklearn.model_selection import ShuffleSplit, KFold
-# from sklearn.model_selection import GroupShuffleSplit, GroupKFold
-# from sklearn.model_selection import StratifiedShuffleSplit, StratifiedKFold
-
 from sklearn import metrics
 from math import sqrt
 from scipy import optimize
@@ -28,36 +23,12 @@ from pandas.api.types import is_string_dtype
 from sklearn.preprocessing import LabelEncoder
 from sklearn.externals import joblib
 
-# try:
-#     import tensorflow as tf
-#     # print(tf.__version__)
-#     if int(tf.__version__.split('.')[0]) < 2:
-#         # print('Load keras standalone package.')
-#         import keras
-#         from keras.models import load_model
-#         from keras.callbacks import ModelCheckpoint, CSVLogger, ReduceLROnPlateau, EarlyStopping, TensorBoard
-#         from keras.utils import plot_model
-#     else:
-#         # print('Load keras from tf.')
-#         # from tensorflow import keras
-#         from tensorflow.python.keras.models import load_model
-#         from tensorflow.python.keras.callbacks import ModelCheckpoint, CSVLogger, ReduceLROnPlateau, EarlyStopping, TensorBoard
-#         from tensorflow.python.keras.utils import plot_model
-# except:
-#     print('Could not import tensorflow.')
-
-# import keras
-# from keras.models import load_model
-# from keras.callbacks import ModelCheckpoint, CSVLogger, ReduceLROnPlateau, EarlyStopping, TensorBoard
-# from keras.utils import plot_model
-
 # Utils
 filepath = Path(__file__).resolve().parent
-sys.path.append( os.path.abspath(filepath/'../ml') )
-sys.path.append( os.path.abspath(filepath/'../utils') )
-sys.path.append( os.path.abspath(filepath/'../datasplit') )
+# sys.path.append( os.path.abspath(filepath/'../ml') )
+# sys.path.append( os.path.abspath(filepath/'../utils') )
+# sys.path.append( os.path.abspath(filepath/'../datasplit') )
 
-# import ml.ml_models as ml_models
 from datasplit.splitter import data_splitter
 from ml.keras_utils import save_krs_history, plot_prfrm_metrics, r2_krs
 from ml.evals import calc_preds, calc_scores, dump_preds
@@ -243,9 +214,6 @@ class LearningCurve():
                     m = 10 ** np.array(np.arange(8))[1:]
                 elif scale == 'log':
                     if self.n_shards is not None:
-                        # TODO: need to update code to follow this methodology. This can
-                        # allow to remove almost all the code at the bottom 
-                        # self.min_shard = 0 if self.min_shard is None else self.min_shard
                         # www.researchgate.net/post/is_the_logarithmic_spaced_vector_the_same_in_any_base
                         pw = np.linspace(0, self.n_shards-1, num=self.n_shards) / (self.n_shards-1)
                         m = self.min_shard * (self.max_shard/self.min_shard) ** pw
@@ -255,7 +223,7 @@ class LearningCurve():
                         self.print_fn('\nTrain shards: {}\n'.format(self.tr_shards))
                         return None
                         
-
+            # TODO: figure out if the code below is still necessary
             m = np.array( [int(i) for i in m] ) # cast to int
 
             # Set min shard
@@ -366,8 +334,6 @@ class LearningCurve():
                 model = self.ml_model_def( **self.ml_init_args )
                 
                 # Train
-                # TODO: consider to pass and function train_model that will be used to train model and return
-                # specified parameters, or a dict with required and optional parameters
                 eval_set = (xvl, yvl)
                 if self.framework=='lightgbm':
                     model, trn_outdir, runtime = self.trn_lgbm_model(model=model, xtr_sub=xtr_sub, ytr_sub=ytr_sub,
@@ -430,9 +396,9 @@ class LearningCurve():
                 te_scores['tr_size'] = tr_sz
 
                 # Append scores (dicts)
-                tr_scores_all.append(tr_scores)
-                vl_scores_all.append(vl_scores)
-                te_scores_all.append(te_scores)
+                tr_scores_all.append( tr_scores )
+                vl_scores_all.append( vl_scores )
+                te_scores_all.append( te_scores )
 
                 # Dump intermediate scores
                 scores = pd.concat([scores_to_df([tr_scores]), scores_to_df([vl_scores]), scores_to_df([te_scores])], axis=0)
