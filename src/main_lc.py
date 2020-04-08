@@ -330,7 +330,7 @@ def run(args):
     lc_scores.to_csv( args['rout']/'lc_scores.csv', index=False)
 
     # Load results and plot
-    lc_plots.plot_lc_all_metrics( lc_scores, outdir=args['rout'] )
+    lc_plots.plot_lc_all_metrics( lc_scores, outdir=args['rout'], xtick_scale='linear', ytick_scale='linear')
     lc_plots.plot_lc_all_metrics( lc_scores, outdir=args['rout'], xtick_scale='log2', ytick_scale='log2' )
     
     # Dump args

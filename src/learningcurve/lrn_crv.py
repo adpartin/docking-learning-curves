@@ -180,17 +180,9 @@ class LearningCurve():
                     vl_dct[fold] = vl_id.iloc[:, fold].dropna().values.astype(int).tolist()
                     te_dct[fold] = te_id.iloc[:, fold].dropna().values.astype(int).tolist()
 
-
         # Generate splits on the fly if pre-computed splits were passed
-        # TODO: this option won't work after we added test set in addition to train and val sets.
         else:
-            # raise ValueError('This option is not supported.')
-            
-            # if isinstance(self.cv, int):
             if isinstance(self.n_splits, int):
-                # By default, it k-fold cross-validation
-                # self.cv_folds = self.cv
-                # self.cv = KFold(n_splits=self.cv_folds, shuffle=False, random_state=self.random_state)
                 if self.mltype=='cls':
                     te_method='strat'
                     cv_method='strat'
@@ -201,9 +193,11 @@ class LearningCurve():
                 kwargs = {'data': self.X, 'te_method' :'simple', 'cv_method': 'simple',
                           'te_size': 0.1, 'mltype': self.mltype, 'ydata': self.Y,
                           'split_on': None, 'print_fn': print}
-                data_splitter( n_splits=self.n_splits, **kwargs )
-            """
+                tr_dct, vl_dct, te_dct = data_splitter( n_splits=self.n_splits, **kwargs )
             else:
+                raise ValueError(f'n_splits must be int>1. Got {n_splits}.')
+
+            """
                 # cv is sklearn splitter
                 self.cv_folds = cv.get_n_splits() 
 
@@ -222,7 +216,6 @@ class LearningCurve():
                 tr_dct[fold] = tr_vec
                 vl_dct[fold] = vl_vec
             """
-
         # Keep dicts
         self.tr_dct = tr_dct
         self.vl_dct = vl_dct
@@ -308,7 +301,7 @@ class LearningCurve():
             ml_init_args: dict={},
             ml_fit_args: dict={},
             ## clr_keras_args: dict={},
-            metrics: list=['r2', 'neg_mean_absolute_error', 'neg_median_absolute_error', 'neg_mean_squared_error'],
+            ## metrics: list=['r2', 'neg_mean_absolute_error', 'neg_median_absolute_error', 'neg_mean_squared_error'],
             n_jobs: int=4,
             random_state: int=None,
             plot=True):
@@ -331,7 +324,7 @@ class LearningCurve():
         self.ml_init_args = ml_init_args
         self.ml_fit_args = ml_fit_args
         ## self.clr_keras_args = clr_keras_args
-        self.metrics = metrics
+        ## self.metrics = metrics
         self.n_jobs = n_jobs
         # self.random_state = random_state
         
@@ -365,21 +358,11 @@ class LearningCurve():
             yte = np.asarray(yte)            
             
             # Shards loop (iterate across the dataset sizes and train)
-            """
-            np.random.seed(random_state)
-            idx = np.random.permutation(len(xtr))
-            Note that we don't shuffle the dataset another time using the commands above.
-            """
-            # idx = np.arange(len(xtr))
             for i, tr_sz in enumerate(self.tr_shards):
-                # For each shard: train model, save best model, calc tr_scores, calc_vl_scores
+                # For each size: train model (and save) model; calc tr, vl and te scores
                 self.print_fn(f'\tTrain size: {tr_sz} ({i+1}/{len(self.tr_shards)})')   
 
                 # Sequentially get a subset of samples (the input dataset X must be shuffled)
-                # TODO: why not to use simply xtr.iloc[:tr_sz, :]
-                # xtr_sub = xtr.loc[idx[:tr_sz], :]
-                # ytr_sub = ytr.loc[idx[:tr_sz]]  # np.squeeze(ytr[idx[:tr_sz], :])
-                # mtr_sub = mtr.loc[idx[:tr_sz], :]
                 xtr_sub = xtr.iloc[:tr_sz, :]
                 ytr_sub = ytr.iloc[:tr_sz]
                 mtr_sub = mtr.iloc[:tr_sz, :]
