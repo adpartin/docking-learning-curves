@@ -4,9 +4,22 @@ The leaning curve methods currently support scikit-learn, LightGBM, and tf.keras
 Running from command line:
 ```
 python src/main_lc.py --datapath data/dataframe.csv --n_shards 7 --n_splits 3 --gout ./trn_lc --trg_name reg
+python src/main_lc.py --datapath data/docking_data_march_30/ml.ADRP-ADPR_pocket1_dock.parquet --n_splits 3 --n_shards 7 --max_shard 185000 --gout ./trn_lc --trg_name reg
 ```
 
-## 
+Parallel execusion (need to pre-compute the data splits and provide the path):
+```
+python src/batch_lc.py --splitdir data/docking_data_march_30/ml.3CLPro_pocket1_dock.splits \
+	--datapath data/docking_data_march_30/ml.3CLPro_pocket1_dock.parquet \
+	--n_splits 30 --par_jobs 10 --gout ./trn_lc
+```
+
+Aggregate results from parallel execusion and plot learning curves:
+```
+python src/agg_results_from_runs.py --res_dir ./trn_lc_batch
+```
+
+## Generate learning curves with your own ML model
 If you want to use an ML model of your choice with the learning curve API, the minimum you need to provide is a function that generates your ML model and two python dictionaries.
 One dict lists the model initialization parameters (`ml_init_kwargs`), and the other dict, contains the fitting (training) parameters (`ml_fit_kwargs`). For Keras model, you can also pass a function that creates a list of callbacks.<br>
 See examples below. <be>
