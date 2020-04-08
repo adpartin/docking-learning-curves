@@ -84,7 +84,10 @@ class LearningCurve():
             # cv=5,
             cv_lists=None,  # (tr_id, vl_id, te_id)
             cv_folds_arr=None,
-            n_splits=1,
+
+            n_splits: int=1,
+            mltype: str='reg',
+
             lc_step_scale: str='log2',
             min_shard = 0,
             max_shard = None,
@@ -127,6 +130,7 @@ class LearningCurve():
         self.cv_folds_arr = cv_folds_arr
 
         self.n_splits = n_splits
+        self.mltype = mltype
 
         self.lc_step_scale = lc_step_scale 
         self.min_shard = min_shard
@@ -161,10 +165,10 @@ class LearningCurve():
             self.cv_folds = tr_id.shape[1]
 
             # Calc the split ratio if cv=1
-            if self.cv_folds == 1:
-                total_samples = tr_id.shape[0] + vl_id.shape[0] + te_id.shape[0]
-                self.vl_size = vl_id.shape[0] / total_samples
-                self.te_size = te_id.shape[0] / total_samples
+            # if self.cv_folds == 1:
+            #     total_samples = tr_id.shape[0] + vl_id.shape[0] + te_id.shape[0]
+            #     self.vl_size = vl_id.shape[0] / total_samples
+            #     self.te_size = te_id.shape[0] / total_samples
 
             if self.cv_folds_arr is None:
                 self.cv_folds_arr = [f+1 for f in range(self.cv_folds)]
@@ -177,15 +181,27 @@ class LearningCurve():
                     te_dct[fold] = te_id.iloc[:, fold].dropna().values.astype(int).tolist()
 
 
-        # Generate folds on the fly if no pre-defined folds were passed
+        # Generate splits on the fly if pre-computed splits were passed
         # TODO: this option won't work after we added test set in addition to train and val sets.
         else:
             # raise ValueError('This option is not supported.')
             
-            if isinstance(self.cv, int):
+            # if isinstance(self.cv, int):
+            if isinstance(self.n_splits, int):
                 # By default, it k-fold cross-validation
-                self.cv_folds = self.cv
-                self.cv = KFold(n_splits=self.cv_folds, shuffle=False, random_state=self.random_state)
+                # self.cv_folds = self.cv
+                # self.cv = KFold(n_splits=self.cv_folds, shuffle=False, random_state=self.random_state)
+                if self.mltype=='cls':
+                    te_method='strat'
+                    cv_method='strat'
+                else:
+                    te_method='simple'
+                    cv_method='simple'
+
+                kwargs = {'data': self.X, 'te_method' :'simple', 'cv_method': 'simple',
+                          'te_size': 0.1, 'mltype': self.mltype, 'ydata': self.Y,
+                          'split_on': None, 'print_fn': print}
+                data_splitter( n_splits=self.n_splits, **kwargs )
             """
             else:
                 # cv is sklearn splitter
@@ -283,7 +299,7 @@ class LearningCurve():
 
     def trn_learning_curve(self,
             framework: str,  # 'lightgbm'
-            mltype: str,         # 'reg'
+            ## mltype: str,         # 'reg'
             ## model_name: str, # 'lgb_reg'
 
             ml_model_def,
@@ -306,7 +322,7 @@ class LearningCurve():
             metrics : allow to pass a string of metrics  TODO!
         """
         self.framework = framework
-        self.mltype = mltype
+        ## self.mltype = mltype
         ## self.model_name = model_name
         
         self.ml_model_def = ml_model_def
