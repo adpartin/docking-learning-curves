@@ -1,34 +1,3 @@
-""" 
-This script generates learning curves.
-You need to specify:
-1. Function that creates the ML model.
-   For example:
-   
-    def my_lgbm_classifier(**args):
-        model = lightgbm.LGBMClassifier(**args)
-        return model
-    
-    def my_dnn(input_dim, dr_rate=0.2, lr=0.001, initializer='he_uniform', batchnorm=False):
-        layers = [1000, 500, 250]
-        inputs = Input(shape=(input_dim,), name='inputs')
-        x = Dense(layers[0], activation='relu', kernel_initializer=initializer)(inputs)
-        x = Dense(layers[1], activation='relu', kernel_initializer=initializer)(x)
-        x = Dense(layers[2], activation='relu', kernel_initializer=initializer)(x)
-        outputs = Dense(1, activation='relu', name='outputs')(x)
-        model = Model(inputs=inputs, outputs=outputs)
-        
-        opt = SGD(lr=lr, momentum=0.9)
-        model.compile(loss='mean_squared_error', optimizer=opt, metrics=['mae'])
-        return model
-
-2. Initlization (input) parameters that initialize the model.
-   For example:
-    ml_init_kwargs = {'input_dim': 1200, 'dr_rate': 0.35}
-    
-3. Fitting parameters for the model
-   For example:
-    ml_fit_kwargs = {'input_dim': 1200, 'dr_rate': 0.35}
-"""
 from __future__ import print_function, division
 
 import warnings

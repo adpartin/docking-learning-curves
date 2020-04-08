@@ -12,14 +12,13 @@ import numpy as np
 import pandas as pd
 
 import matplotlib
-# matplotlib.use('TkAgg')
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-from sklearn.model_selection import train_test_split
-from sklearn.model_selection import ShuffleSplit, KFold
-from sklearn.model_selection import GroupShuffleSplit, GroupKFold
-from sklearn.model_selection import StratifiedShuffleSplit, StratifiedKFold
+# from sklearn.model_selection import train_test_split
+# from sklearn.model_selection import ShuffleSplit, KFold
+# from sklearn.model_selection import GroupShuffleSplit, GroupKFold
+# from sklearn.model_selection import StratifiedShuffleSplit, StratifiedKFold
 
 from sklearn import metrics
 from math import sqrt
@@ -28,9 +27,6 @@ from scipy import optimize
 from pandas.api.types import is_string_dtype
 from sklearn.preprocessing import LabelEncoder
 from sklearn.externals import joblib
-
-from datasplit import splitter
-from datasplit.splitter import data_splitter
 
 # try:
 #     import tensorflow as tf
@@ -62,6 +58,7 @@ sys.path.append( os.path.abspath(filepath/'../utils') )
 sys.path.append( os.path.abspath(filepath/'../datasplit') )
 
 # import ml.ml_models as ml_models
+from datasplit.splitter import data_splitter
 from ml.keras_utils import save_krs_history, plot_prfrm_metrics, r2_krs
 from ml.evals import calc_preds, calc_scores, dump_preds
 from utils.utils import dump_dict
@@ -81,7 +78,7 @@ class LearningCurve():
     def __init__(self,
             X, Y,
             meta=None,
-            # cv=5,
+
             cv_lists=None,  # (tr_id, vl_id, te_id)
             cv_folds_arr=None,
 
@@ -93,7 +90,7 @@ class LearningCurve():
             max_shard = None,
             n_shards: int=None,
             shards_arr: list=[],
-            args=None,
+
             print_fn=print,
             save_model=False,
             outdir=Path('./')):
@@ -119,7 +116,6 @@ class LearningCurve():
                 e.g., shard_frac=[0.1, 0.2, 0.4, 0.7, 1.0].
                 If this arg is not provided, then the training shards are generated from n_shards and lc_step_scale.
                 
-            args : command line args
             save_model : dump model if True (keras model ignores this arg since we load the best model to calc score)
         """
         self.X = pd.DataFrame(X).reset_index(drop=True)
@@ -127,10 +123,11 @@ class LearningCurve():
         self.meta = pd.DataFrame(meta).reset_index(drop=True)
 
         self.cv_lists = cv_lists
-        self.cv_folds_arr = cv_folds_arr
 
         self.n_splits = n_splits
         self.mltype = mltype
+
+        self.cv_folds_arr = cv_folds_arr
 
         self.lc_step_scale = lc_step_scale 
         self.min_shard = min_shard
@@ -138,18 +135,16 @@ class LearningCurve():
         self.n_shards = n_shards
         self.shards_arr = shards_arr
 
-        ## self.args = args
-        ## self.print_fn = get_print_func(logger)
         self.print_fn = print_fn
         self.save_model = save_model
         self.outdir = Path( outdir )
 
-        self.create_fold_dcts()
+        self.create_split_dcts()
         self.create_tr_shards_list()
         # self.trn_single_subset() # TODO: implement this method for better modularity
 
         
-    def create_fold_dcts(self):
+    def create_split_dcts(self):
         """ Converts a tuple of arrays self.cv_lists into two dicts, tr_dct, vl_dct, and te_dict.
         Both sets of data structures contain the splits of all the k-folds. """
         tr_dct = {}
@@ -196,7 +191,6 @@ class LearningCurve():
                 tr_dct, vl_dct, te_dct = data_splitter( n_splits=self.n_splits, **kwargs )
             else:
                 raise ValueError(f'n_splits must be int>1. Got {n_splits}.')
-
             """
                 # cv is sklearn splitter
                 self.cv_folds = cv.get_n_splits() 
@@ -303,7 +297,6 @@ class LearningCurve():
             ## clr_keras_args: dict={},
             ## metrics: list=['r2', 'neg_mean_absolute_error', 'neg_median_absolute_error', 'neg_mean_squared_error'],
             n_jobs: int=4,
-            random_state: int=None,
             plot=True):
         """ 
         Args:
@@ -326,7 +319,6 @@ class LearningCurve():
         ## self.clr_keras_args = clr_keras_args
         ## self.metrics = metrics
         self.n_jobs = n_jobs
-        # self.random_state = random_state
         
         # Start nested loop of train size and cv folds
         tr_scores_all = [] # list of dicts
