@@ -118,7 +118,8 @@ def run(args):
         rout = gout / args['rout']
     else:
         if splitdir is None:
-            rout = gout / f'run'
+            # rout = gout / f'run'
+            rout = gout
         else:
             rout = gout / f'run_{split_id}'
         args['rout'] = rout
@@ -165,11 +166,11 @@ def run(args):
         assert len(single_split_files) >= 2, f'The split {s} contains only one file.'
         for id_file in single_split_files:
             if 'tr_id' in id_file:
-                tr_id = load_data( id_file )
+                tr_id = load_data( id_file ).values.reshape(-1,)
             elif 'vl_id' in id_file:
-                vl_id = load_data( id_file )
+                vl_id = load_data( id_file ).values.reshape(-1,)
             elif 'te_id' in id_file:
-                te_id = load_data( id_file )    
+                te_id = load_data( id_file ).values.reshape(-1,)
 
         cv_lists = (tr_id, vl_id, te_id)
         
@@ -283,12 +284,13 @@ def run(args):
     lc_scores.to_csv( args['rout']/'lc_scores.csv', index=False)
 
     # Load results and plot
-    lc_plots.plot_lc_all_metrics( lc_scores, outdir=args['rout'], xtick_scale='linear', ytick_scale='linear')
-    lc_plots.plot_lc_all_metrics( lc_scores, outdir=args['rout'], xtick_scale='log2', ytick_scale='log2' )
+    kwargs = {'tr_set': 'te', 'xtick_scale': 'log2', 'ytick_scale': 'log2'}
+    lc_plots.plot_lc_many_metric( lc_scores, outdir=args['rout'], **kwargs )
+    # kwargs = {'tr_set': 'te', 'xtick_scale': 'linear', 'ytick_scale': 'linear'}
+    # lc_plots.plot_lc_many_metric( lc_scores, outdir=args['rout'], **kwargs )
     
     # Dump args
     dump_dict(args, outpath=args['rout']/'args.txt')
-    
     
     # ====================================
     """
@@ -321,7 +323,6 @@ def run(args):
         ax.legend(frameon=True, fontsize=10, loc='best')
         plt.tight_layout()
         plt.savefig(args['outdir']/f'power_law_fit_{metric_name}.png')
-
 
         # -----  Extrapolation  -----
         n_pnts_ext = 1 # Number of points to extrapolate to

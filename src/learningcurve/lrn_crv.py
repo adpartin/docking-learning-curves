@@ -51,7 +51,7 @@ class LearningCurve():
             meta=None,
 
             cv_lists=None,  # (tr_id, vl_id, te_id)
-            cv_folds_arr=None,
+            # cv_folds_arr=None,
 
             n_splits: int=1,
             mltype: str='reg',
@@ -98,7 +98,7 @@ class LearningCurve():
         self.n_splits = n_splits
         self.mltype = mltype
 
-        self.cv_folds_arr = cv_folds_arr
+        # self.cv_folds_arr = cv_folds_arr
 
         self.lc_step_scale = lc_step_scale 
         self.min_shard = min_shard
@@ -124,27 +124,31 @@ class LearningCurve():
 
         # Use lists passed as input arg
         if self.cv_lists is not None:
-            tr_id = self.cv_lists[0]
-            vl_id = self.cv_lists[1]
-            te_id = self.cv_lists[2]
-            assert (tr_id.shape[1]==vl_id.shape[1]) and (tr_id.shape[1]==te_id.shape[1]), 'tr, vl, and te must have the same number of folds.'
-            self.cv_folds = tr_id.shape[1]
+        #     tr_id = self.cv_lists[0]
+        #     vl_id = self.cv_lists[1]
+        #     te_id = self.cv_lists[2]
+        #     assert (tr_id.shape[1]==vl_id.shape[1]) and (tr_id.shape[1]==te_id.shape[1]), 'tr, vl, and te must have the same number of folds.'
+        #     self.cv_folds = tr_id.shape[1]
 
-            # Calc the split ratio if cv=1
-            # if self.cv_folds == 1:
-            #     total_samples = tr_id.shape[0] + vl_id.shape[0] + te_id.shape[0]
-            #     self.vl_size = vl_id.shape[0] / total_samples
-            #     self.te_size = te_id.shape[0] / total_samples
+        #     # Calc the split ratio if cv=1
+        #     # if self.cv_folds == 1:
+        #     #     total_samples = tr_id.shape[0] + vl_id.shape[0] + te_id.shape[0]
+        #     #     self.vl_size = vl_id.shape[0] / total_samples
+        #     #     self.te_size = te_id.shape[0] / total_samples
 
-            if self.cv_folds_arr is None:
-                self.cv_folds_arr = [f+1 for f in range(self.cv_folds)]
+        #     if self.cv_folds_arr is None:
+        #         self.cv_folds_arr = [f+1 for f in range(self.cv_folds)]
                 
-            for fold in range(tr_id.shape[1]):
-                # cv_folds_arr contains the specific folds we wish to process
-                if fold+1 in self.cv_folds_arr:
-                    tr_dct[fold] = tr_id.iloc[:, fold].dropna().values.astype(int).tolist()
-                    vl_dct[fold] = vl_id.iloc[:, fold].dropna().values.astype(int).tolist()
-                    te_dct[fold] = te_id.iloc[:, fold].dropna().values.astype(int).tolist()
+        #     for fold in range(tr_id.shape[1]):
+        #         # cv_folds_arr contains the specific folds we wish to process
+        #         if fold+1 in self.cv_folds_arr:
+        #             tr_dct[fold] = tr_id.iloc[:, fold].dropna().values.astype(int).tolist()
+        #             vl_dct[fold] = vl_id.iloc[:, fold].dropna().values.astype(int).tolist()
+        #             te_dct[fold] = te_id.iloc[:, fold].dropna().values.astype(int).tolist()
+
+            tr_dct[0] = self.cv_lists[0]
+            vl_dct[0] = self.cv_lists[1]
+            te_dct[0] = self.cv_lists[2]
 
         # Generate splits on the fly if pre-computed splits were passed
         else:
@@ -159,6 +163,8 @@ class LearningCurve():
                 kwargs = {'data': self.X, 'te_method' :'simple', 'cv_method': 'simple',
                           'te_size': 0.1, 'mltype': self.mltype, 'ydata': self.Y,
                           'split_on': None, 'print_fn': print}
+
+                self.print_fn('\nGenerate data splits ...')
                 tr_dct, vl_dct, te_dct = data_splitter( n_splits=self.n_splits, **kwargs )
             else:
                 raise ValueError(f'n_splits must be int>1. Got {n_splits}.')
@@ -220,7 +226,7 @@ class LearningCurve():
                         # m = 2 ** np.linspace(self.min_shard, self.max_shard, self.n_shards)
                         m = np.array( [int(i) for i in m] )
                         self.tr_shards = m
-                        self.print_fn('\nTrain shards: {}\n'.format(self.tr_shards))
+                        self.print_fn('\nTrain sizes: {}\n'.format(self.tr_shards))
                         return None
                         
             # TODO: figure out if the code below is still necessary
@@ -298,24 +304,24 @@ class LearningCurve():
 
         # CV loop
         # TODO: consider removing this since we don't use CV loops anymore!
-        for fold_num in self.tr_dct.keys():
-            # fold = fold + 1
-            self.print_fn(f'Fold {fold_num} out of {list(self.tr_dct.keys())}')    
+        for split_num in self.tr_dct.keys():
+            # split = split + 1
+            self.print_fn(f'Split {split_num} out of {list(self.tr_dct.keys())}')    
 
-            # Get the indices for this fold
-            tr_id = self.tr_dct[fold_num]
-            vl_id = self.vl_dct[fold_num]
-            te_id = self.te_dct[fold_num]
+            # Get the indices for this split
+            tr_id = self.tr_dct[ split_num ]
+            vl_id = self.vl_dct[ split_num ]
+            te_id = self.te_dct[ split_num ]
             
             # Extract Train set T, Validation set V, and Test set E
-            xtr, ytr, mtr = self.get_data_by_id(tr_id) # samples from xtr are sequentially sampled for TRAIN
-            xvl, yvl, mvl = self.get_data_by_id(vl_id) # fixed set of VAL samples for the current CV split
-            xte, yte, mte = self.get_data_by_id(te_id) # fixed set of TEST samples for the current CV split
+            xtr, ytr, mtr = self.get_data_by_id( tr_id ) # samples from xtr are sequentially sampled for TRAIN
+            xvl, yvl, mvl = self.get_data_by_id( vl_id ) # fixed set of VAL samples for the current CV split
+            xte, yte, mte = self.get_data_by_id( te_id ) # fixed set of TEST samples for the current CV split
 
-            xvl = np.asarray(xvl)
-            yvl = np.asarray(yvl)
-            xte = np.asarray(xte)
-            yte = np.asarray(yte)            
+            xvl = np.asarray( xvl )
+            yvl = np.asarray( yvl )
+            xte = np.asarray( xte )
+            yte = np.asarray( yte )            
             
             # Shards loop (iterate across the dataset sizes and train)
             for i, tr_sz in enumerate(self.tr_shards):
@@ -327,8 +333,8 @@ class LearningCurve():
                 ytr_sub = ytr.iloc[:tr_sz]
                 mtr_sub = mtr.iloc[:tr_sz, :]
                 
-                xtr_sub = np.asarray(xtr_sub)
-                ytr_sub = np.asarray(ytr_sub)                
+                xtr_sub = np.asarray( xtr_sub )
+                ytr_sub = np.asarray( ytr_sub )                
                 
                 # Get the estimator
                 model = self.ml_model_def( **self.ml_init_args )
@@ -337,13 +343,13 @@ class LearningCurve():
                 eval_set = (xvl, yvl)
                 if self.framework=='lightgbm':
                     model, trn_outdir, runtime = self.trn_lgbm_model(model=model, xtr_sub=xtr_sub, ytr_sub=ytr_sub,
-                                                                     fold=fold_num, tr_sz=tr_sz, eval_set=eval_set)
+                                                                     split=split_num, tr_sz=tr_sz, eval_set=eval_set)
                 elif self.framework=='sklearn':
                     model, trn_outdir, runtime = self.trn_sklearn_model(model=model, xtr_sub=xtr_sub, ytr_sub=ytr_sub,
-                                                                        fold=fold_num, tr_sz=tr_sz, eval_set=None)
+                                                                        split=split_num, tr_sz=tr_sz, eval_set=None)
                 elif self.framework=='keras':
                     model, trn_outdir, runtime = self.trn_keras_model(model=model, xtr_sub=xtr_sub, ytr_sub=ytr_sub,
-                                                                      fold=fold_num, tr_sz=tr_sz, eval_set=eval_set)
+                                                                      split=split_num, tr_sz=tr_sz, eval_set=eval_set)
                 elif self.framework=='pytorch':
                     pass
                 else:
@@ -380,19 +386,19 @@ class LearningCurve():
                 del model
 
                 # Store runtime
-                runtime_records.append((fold_num, tr_sz, runtime))
+                runtime_records.append((split_num, tr_sz, runtime))
 
                 # Add metadata
                 tr_scores['set'] = 'tr'
-                tr_scores['fold'] = 'fold'+str(fold_num)
+                tr_scores['split'] = 'split'+str(split_num)
                 tr_scores['tr_size'] = tr_sz
                 
                 vl_scores['set'] = 'vl'
-                vl_scores['fold'] = 'fold'+str(fold_num)
+                vl_scores['split'] = 'split'+str(split_num)
                 vl_scores['tr_size'] = tr_sz
 
                 te_scores['set'] = 'te'
-                te_scores['fold'] = 'fold'+str(fold_num)
+                te_scores['split'] = 'split'+str(split_num)
                 te_scores['tr_size'] = tr_sz
 
                 # Append scores (dicts)
@@ -406,8 +412,8 @@ class LearningCurve():
                 del trn_outdir, scores
                 
             # Dump intermediate results (this is useful if the run terminates before run ends)
-            scores_all_df_tmp = pd.concat([scores_to_df(tr_scores_all), scores_to_df(vl_scores_all), scores_to_df(te_scores_all)], axis=0)
-            scores_all_df_tmp.to_csv( self.outdir / ('tmp_lc_scores_cv' + str(fold_num) + '.csv'), index=False )
+            # scores_all_df_tmp = pd.concat([scores_to_df(tr_scores_all), scores_to_df(vl_scores_all), scores_to_df(te_scores_all)], axis=0)
+            # scores_all_df_tmp.to_csv( self.outdir / ('tmp_lc_scores_split' + str(split_num) + '.csv'), index=False )
 
         # Scores to df
         tr_scores_df = scores_to_df( tr_scores_all )
@@ -419,10 +425,10 @@ class LearningCurve():
         tr_scores_df.to_csv( self.outdir/'tr_lc_scores.csv', index=False) 
         vl_scores_df.to_csv( self.outdir/'vl_lc_scores.csv', index=False) 
         te_scores_df.to_csv( self.outdir/'te_lc_scores.csv', index=False) 
-        scores_df.to_csv( self.outdir/'lc_scores.csv', index=False) 
+        # scores_df.to_csv( self.outdir/'lc_scores.csv', index=False) 
 
         # Runtime df
-        runtime_df = pd.DataFrame.from_records(runtime_records, columns=['fold', 'tr_sz', 'time'])
+        runtime_df = pd.DataFrame.from_records(runtime_records, columns=['split', 'tr_sz', 'time'])
         runtime_df.to_csv( self.outdir/'runtime.csv', index=False) 
 
         return scores_df
@@ -447,9 +453,9 @@ class LearningCurve():
         return x_data, y_data, m_data    
 
 
-    def trn_keras_model(self, model, xtr_sub, ytr_sub, fold, tr_sz, eval_set=None):
+    def trn_keras_model(self, model, xtr_sub, ytr_sub, split, tr_sz, eval_set=None):
         """ Train and save Keras model. """
-        trn_outdir = self.create_trn_outdir(fold, tr_sz)
+        trn_outdir = self.create_trn_outdir(split, tr_sz)
         # keras.utils.plot_model(model, to_file=self.outdir/'nn_model.png') # comment this when using Theta
                 
         # if bool(self.clr_keras_args):
@@ -485,9 +491,9 @@ class LearningCurve():
         return model, trn_outdir, runtime
 
 
-    def trn_lgbm_model(self, model, xtr_sub, ytr_sub, fold, tr_sz, eval_set=None):
+    def trn_lgbm_model(self, model, xtr_sub, ytr_sub, split, tr_sz, eval_set=None):
         """ Train and save LigthGBM model. """
-        trn_outdir = self.create_trn_outdir(fold, tr_sz)
+        trn_outdir = self.create_trn_outdir(split, tr_sz)
         
         # Fit params
         ml_fit_args = self.ml_fit_args.copy()
@@ -506,9 +512,9 @@ class LearningCurve():
         return model, trn_outdir, runtime
     
     
-    def trn_sklearn_model(self, model, xtr_sub, ytr_sub, fold, tr_sz, eval_set=None):
+    def trn_sklearn_model(self, model, xtr_sub, ytr_sub, split, tr_sz, eval_set=None):
         """ Train and save sklearn model. """
-        trn_outdir = self.create_trn_outdir(fold, tr_sz)
+        trn_outdir = self.create_trn_outdir(split, tr_sz)
         
         # Fit params
         ml_fit_args = self.ml_fit_args
@@ -523,21 +529,25 @@ class LearningCurve():
         return model, trn_outdir, runtime
     
     
-    def create_trn_outdir(self, fold, tr_sz):
-        trn_outdir = self.outdir / ('cv'+str(fold) + '_sz'+str(tr_sz))
+    def create_trn_outdir(self, split, tr_sz):
+        trn_outdir = self.outdir / ('split'+str(split) + '_sz'+str(tr_sz))
         os.makedirs(trn_outdir, exist_ok=True)
         return trn_outdir
 # --------------------------------------------------------------------------------
 
 
-def scores_to_df(scores_all):
+def scores_to_df( scores_all ):
     """ (tricky commands) """
-    df = pd.DataFrame(scores_all)
-    df = df.melt(id_vars=['fold', 'tr_size', 'set'])
-    df = df.rename(columns={'variable': 'metric'})
-    df = df.pivot_table(index=['metric', 'tr_size', 'set'], columns=['fold'], values='value')
-    df = df.reset_index(drop=False)
-    df.columns.name = None
-    return df
+    df = pd.DataFrame( scores_all )
+    df_mlt = df.melt(id_vars=['split', 'tr_size', 'set'])
+    df_mlt = df_mlt.rename(columns={'variable': 'metric'})
+    df_mlt = df_mlt.rename(columns={'value': 'score'})
+
+    # TODO: the pivoting complicates things; consider keep it melted
+    # df = df_mlt.pivot_table(index=['metric', 'tr_size', 'set'], columns=['split'], values='score')
+    # df = df.reset_index(drop=False)
+    # df.columns.name = None
+    # return df
+    return df_mlt
 
 

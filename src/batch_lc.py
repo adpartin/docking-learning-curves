@@ -64,7 +64,7 @@ if par_jobs > 1:
             delayed(gen_splits)(split_id, *other_args) for split_id in unq_split_ids[:n_splits] )
             # delayed(gen_splits)(dfile, *other_args) for dfile in dfiles )
 else:
-    for i, split_id in enumerate(unq_split_ids):
+    for i, split_id in enumerate(unq_split_ids[:n_splits]):
         print('Processing split_id', split_id)
         gen_splits(split_id, *other_args)
     

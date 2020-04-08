@@ -30,7 +30,7 @@ import lightgbm as lgb
 filepath = Path(__file__).resolve().parent
 
 # Utils
-from learningcurve.lc_plots import plot_lc_agg
+from learningcurve.lc_plots import plot_lc_many_metric # plot_lc_agg
     
         
 def parse_args(args):
@@ -43,32 +43,20 @@ def parse_args(args):
     return args
 
 
-def agg_scores(run_dirs, prfx='run'):
+def agg_scores( run_dirs ):
     """ Aggregate results from LC runs. """
     scores = []
     
     for i, r in enumerate(run_dirs):
-        dpath = Path(r)/'lrn_crv_scores.csv'
+        dpath = Path(r)/'lc_scores.csv'
         if not dpath.exists():
             continue
 
         scr = pd.read_csv( dpath )
-        scr.rename(columns={'fold0': prfx+str(i)}, inplace=True)
-        if len(scores)==0:
-            scores = scr
-        else:
-            scores = scores.merge(scr, on=['metric', 'tr_size', 'set'])
+        scr['split'] = Path(r).name
+        scores.append( scr )
 
-    run_col_names = [c for c in scores.columns if prfx in c]
-
-    scores_mean   = scores[run_col_names].mean(axis=1)
-    scores_median = scores[run_col_names].median(axis=1)
-    scores_std    = scores[run_col_names].std(axis=1)
-    # scores_iqr    = iqr(scores.iloc[:, 6:].values, axis=0)
-
-    scores.insert(loc=3, column='mean',   value=scores_mean)
-    scores.insert(loc=3, column='median', value=scores_median)
-    scores.insert(loc=3, column='std',    value=scores_std)
+    scores = pd.concat( scores, axis=0 )
     return scores
 
 
@@ -77,8 +65,7 @@ def run(args):
     dir_name = res_dir.name # .split('.')[1]
     
     run_dirs = glob( str(res_dir/'run*') )
-    prfx = 'run'
-    scores = agg_scores( run_dirs, prfx=prfx )
+    scores = agg_scores( run_dirs )
     
     print('Training set sizes:', np.unique(scores.tr_size))
     
@@ -91,22 +78,9 @@ def run(args):
         te_scores.to_csv(res_dir/'te_scores.csv', index=False)
         te_scores_mae.to_csv(res_dir/'te_scores_mae.csv', index=False)
 
-    metrics = ['mean_absolute_error', 'r2']
-    for metric_name in metrics:
-        # metric_name = 'mean_absolute_error'
-        tr_set = 'te'
-    
-        plot_args = {'xtick_scale': 'log2', 'ytick_scale': 'log2'}
-        ax = plot_lc_agg(scores, metric_name=metric_name, prfx=prfx, tr_set='te', **plot_args)
+    kwargs = {'tr_set': 'te', 'xtick_scale': 'log2', 'ytick_scale': 'log2'}
+    ax = plot_lc_many_metric(scores, metrics=['mean_absolute_error', 'r2'], outdir=res_dir, **kwargs)
 
-        ax.set_title( dir_name )
-        ax.legend(frameon=True, fontsize=10, loc='best')
-        ax.grid(True)
-        plt.tight_layout()
-
-        # Save
-        plt.savefig(res_dir/(f'lc.{dir_name}.{metric_name}.png'), dpi=200)
-    
 
 def main(args):
     args = parse_args(args)
