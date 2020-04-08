@@ -3,7 +3,7 @@ The leaning curve methods currently support scikit-learn, LightGBM, and tf.keras
 ## Examples
 Running from command line:
 ```
-python src/main_lc.py --datapath data/dataframe.csv
+python src/main_lc.py --datapath data/dataframe.csv --n_shards 7 --n_splits 3 --gout ./trn_lc --trg_name reg
 ```
 
 ## 
