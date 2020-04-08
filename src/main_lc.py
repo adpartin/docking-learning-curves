@@ -251,13 +251,14 @@ def run(args):
     #      Learning curve 
     # -----------------------------------------------        
     # LC args
-    lc_init_args = { 'cv': None, 'cv_lists': cv_lists,
+    lc_init_args = { 'cv_lists': cv_lists,
+                     'n_splits': args['n_splits'], 'mltype': mltype,
                      'lc_step_scale': args['lc_step_scale'], 'n_shards': args['n_shards'],
                      'min_shard': args['min_shard'], 'max_shard': args['max_shard'],
                      'outdir': args['rout'], 'shards_arr': args['shards_arr'],
                      'print_fn': print_fn}
                     
-    lc_trn_args = { 'framework': args['framework'], 'mltype': mltype,
+    lc_trn_args = { 'framework': args['framework'], ## 'mltype': mltype,
                     'n_jobs': args['n_jobs'], 'random_state': args['seed'],
                     'ml_model_def': ml_model_def, 'keras_callbacks_def': keras_callbacks_def}
 
