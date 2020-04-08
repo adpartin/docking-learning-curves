@@ -76,31 +76,26 @@ def parse_args(args):
                         help='Full path to data splits (default: None).')
     parser.add_argument('--split_id', default=0, type=int, help='Split id (default: 0).')
 
-    # Number of data splits ()
+    # Number of data splits (generated on the fly)
     parser.add_argument('--n_splits', default=1, type=int, help='Number of splits for which to generate learning curves. This is used only if pre-computed splits were not provided (default: 3).')
     
     # Outdir
     parser.add_argument('--gout', default=None, type=str,
-                        help='Gloabl outdir. Path that will contain the runs (default: None).')
+                        help='Gloabl outdir. Path that will contain results for the different pre-computed data splits (i.e., runs) (default: None).')
     parser.add_argument('--rout', default=None, type=str,
                         help='Run outdir. This is the path for the specific run (default: None).')
 
-    # Select target to predict
+    # Target to predict
     parser.add_argument('-t', '--trg_name', default='reg', type=str, choices=['reg', 'cls'],
                         help='Name of target variable (default: reg).')
 
-    # Select feature types
+    # Feature types
     parser.add_argument('-df', '--drug_fea', nargs='+', default=['mod'], choices=['mod'],
-                        help='Drug features (default: mod).')
+                        help='Prefix to identify the drug features (default: mod).')
 
-    # Data scaling
+    # Feature scaling
     parser.add_argument('-sc', '--scaler', default=None, type=str, choices=['stnd', 'minmax', 'rbst'],
                         help='Feature normalization method (stnd, minmax, rbst) (default: None).')    
-    
-    # Data split methods
-    # parser.add_argument('-cvf', '--cv_folds', default=1, type=str, help='Number cross-val folds (default: 1).')
-    # parser.add_argument('-cvf_arr', '--cv_folds_arr', nargs='+', type=int, default=None, help='The specific folds in the cross-val run (default: None).')
-    
     # Learning curve
     parser.add_argument('--lc_step_scale', default='log', type=str, choices=['log', 'linear'],
                         help='Scale of progressive sampling of shards in a learning curve (log2, log, log10, linear) (default: log).')
@@ -112,7 +107,7 @@ def parse_args(args):
     parser.add_argument('--plot_fit', action='store_true', help='Whether to generate the fit (default: False).')
     
     # HPs file
-    parser.add_argument('--hp_file', default=None, type=str, help='File containing hyperparameters for training (default: None).')
+    parser.add_argument('--hp_file', default=None, type=str, help='File containing training hyperparameters (default: None).')
     
     # HPO metric
     parser.add_argument('--hpo_metric', default='mean_absolute_error', type=str, choices=['mean_absolute_error'],
@@ -120,7 +115,6 @@ def parse_args(args):
     
     # Other
     parser.add_argument('--n_jobs', default=8, type=int, help='Default: 8.')
-    parser.add_argument('--seed', default=0, type=int, help='Default: 0.')
     # parser.add_argument('--verbose', default=True, type=int, help='Default: True.')
 
     args, other_args = parser.parse_known_args(args)
@@ -137,16 +131,6 @@ def run(args):
         splitdir = Path( args['splitdir'] ).resolve()
     split_id = args['split_id']
 
-    # ML type ('reg' or 'cls')
-    """
-    if 'reg' in args['model_name']:
-        mltype = 'reg'
-    elif 'cls' in args['model_name']:
-        mltype = 'cls'
-    else:
-        raise ValueError("model_name must contain 'reg' or 'cls'.")
-    """
-    
     # -----------------------------------------------
     #       Global outdir
     # -----------------------------------------------
@@ -233,7 +217,7 @@ def run(args):
     mltype = 'reg'
     ml_init_kwargs = { 'n_estimators': 100, 'max_depth': -1,
                        'learning_rate': 0.1, 'num_leaves': 31,
-                       'n_jobs': 8, 'random_state': args['seed'] }
+                       'n_jobs': 8, 'random_state': None }
     ml_fit_kwargs = {'verbose': False, 'early_stopping_rounds': 10}
     keras_callbacks_def = None
 
@@ -259,7 +243,7 @@ def run(args):
                      'print_fn': print_fn}
                     
     lc_trn_args = { 'framework': args['framework'], ## 'mltype': mltype,
-                    'n_jobs': args['n_jobs'], 'random_state': args['seed'],
+                    'n_jobs': args['n_jobs'], 
                     'ml_model_def': ml_model_def, 'keras_callbacks_def': keras_callbacks_def}
 
     # LC object
