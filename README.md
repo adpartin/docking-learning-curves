@@ -8,7 +8,7 @@ python src/main_lc.py --datapath data/dataframe.csv
 
 ## 
 If you want to use an ML model of your choice with the learning curve API, the minimum you need to provide is a function that generates your ML model and two python dictionaries.
-One dict lists the model initialization parameters (ml_init_kwargs), and the other dict, contains the fitting (training) parameters (ml_fit_kwargs). For Keras model, you can also pass a function that creates a list of callbacks.<br>
+One dict lists the model initialization parameters (`ml_init_kwargs`), and the other dict, contains the fitting (training) parameters (`ml_fit_kwargs`). For Keras model, you can also pass a function that creates a list of callbacks.<br>
 See examples below. <be>
 
 ### LightGBM
@@ -49,12 +49,11 @@ def my_keras_model_def( input_dim ):
 
 def my_callback_def(outdir, ref_metric='val_loss'):
     """ Define keras callbacks list. """
-    checkpointer = ModelCheckpoint( str(outdir/'model_best.h5'), monitor='val_loss', verbose=0,
+    checkpointer = ModelCheckpoint( str(outdir/'model_best.h5'), monitor='val_loss',
                                     save_weights_only=False, save_best_only=True )
     csv_logger = CSVLogger( outdir/'training.log' )
-    reduce_lr = ReduceLROnPlateau( monitor=ref_metric, factor=0.75, patience=25, verbose=1,
-                                   mode='auto', min_delta=0.0001, cooldown=3, min_lr=0.000000001 )
-    early_stop = EarlyStopping( monitor=ref_metric, patience=50, verbose=1, mode='auto' )
+    reduce_lr = ReduceLROnPlateau( monitor=ref_metric, factor=0.75, patience=25 )
+    early_stop = EarlyStopping( monitor=ref_metric )
     return [checkpointer, csv_logger, early_stop, reduce_lr]
 
 ml_model_def = my_keras_model_def
