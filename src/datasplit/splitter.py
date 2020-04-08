@@ -37,8 +37,17 @@ def data_splitter( n_splits=1, gout=None, outfigs=None, ydata=None,
     """
     seeds = np.random.choice(n_splits, n_splits, replace=False)
 
+    # These dicts will contain the splits
+    tr_dct = {}
+    vl_dct = {}
+    te_dct = {}
+
     for i, seed in enumerate( seeds ):
         tr_id, vl_id, te_id = gen_single_split(ydata=ydata, seed=seed, **kwargs)
+
+        tr_dct[i] = tr_id
+        vl_dct[i] = vl_id
+        te_dct[i] = te_id
 
         # digits = len(str(n_splits))
         seed_str = str(i) # f"{seed}".zfill(digits)
@@ -56,7 +65,7 @@ def data_splitter( n_splits=1, gout=None, outfigs=None, ydata=None,
                       fit=None, bins=100, path=outfigs/f'{output}_y_hist_val.png')
             plot_hist(ydata, title=f'Test Set Histogram',
                       fit=None, bins=100, path=outfigs/f'{output}_y_hist_test.png')
-    return None
+    return (tr_dct, vl_dct, te_dct)
 
 
 def gen_single_split( data, te_method='simple', cv_method='simple', te_size=0.1,
