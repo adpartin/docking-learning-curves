@@ -29,6 +29,9 @@ from pandas.api.types import is_string_dtype
 from sklearn.preprocessing import LabelEncoder
 from sklearn.externals import joblib
 
+from datasplit import splitter
+from datasplit.splitter import data_splitter
+
 # try:
 #     import tensorflow as tf
 #     # print(tf.__version__)
@@ -174,11 +177,13 @@ class LearningCurve():
         # Generate folds on the fly if no pre-defined folds were passed
         # TODO: this option won't work after we added test set in addition to train and val sets.
         else:
-            raise ValueError('This option is not supported.')
-            """
+            # raise ValueError('This option is not supported.')
+            
             if isinstance(self.cv, int):
+                # By default, it k-fold cross-validation
                 self.cv_folds = self.cv
                 self.cv = KFold(n_splits=self.cv_folds, shuffle=False, random_state=self.random_state)
+            """
             else:
                 # cv is sklearn splitter
                 self.cv_folds = cv.get_n_splits() 

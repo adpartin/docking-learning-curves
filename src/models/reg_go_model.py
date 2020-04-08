@@ -67,16 +67,16 @@ def reg_go_model_def( **model_init ):
     model = reg_go_arch( **model_init )
     
     # www.tensorflow.org/addons/api_docs/python/tfa/optimizers/TriangularCyclicalLearningRate
-    from tensorflow.keras.optimizers import schedules
-    lr_schedule = schedules.TriangularCyclicalLearningRate(
-        initial_learning_rate=1e-4,
-        maximal_learning_rate=1e-3,
-        step_size=2000,
-        scale_mode='cycle',
-        name='MyCyclicScheduler')
-    opt = tf.keras.optimizers.SGD(learning_rate=lr_schedule)
+    # from tensorflow.keras.optimizers import schedules
+    # lr_schedule = schedules.TriangularCyclicalLearningRate(
+    #     initial_learning_rate=1e-4,
+    #     maximal_learning_rate=1e-3,
+    #     step_size=2000,
+    #     scale_mode='cycle',
+    #     name='MyCyclicScheduler')
+    # opt = tf.keras.optimizers.SGD(learning_rate=lr_schedule)
     
-    # opt = SGD(lr=0.0001, momentum=0.9)
+    opt = SGD(lr=0.0001, momentum=0.9)
     
     model.compile(loss='mean_squared_error',
                   optimizer=opt,

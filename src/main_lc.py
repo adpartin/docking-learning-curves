@@ -23,11 +23,11 @@ You need to specify:
 
 2. Initlization (input) parameters that initialize the model.
    For example:
-    ml_init_args = {'input_dim': 1200, 'dr_rate': 0.35}
+    ml_init_kwargs = {'input_dim': 1200, 'dr_rate': 0.35}
     
 3. Fitting parameters for the model
    For example:
-    ml_fit_args = {'input_dim': 1200, 'dr_rate': 0.35}
+    ml_fit_kwargs = {'input_dim': 1200, 'dr_rate': 0.35}
 """
 from __future__ import print_function, division
 
@@ -214,22 +214,22 @@ def run(args):
     ##                     'max_lr': args['clr_max_lr'], 'gamma': args['clr_gamma']}       
 
     # LGBM regressor model def
-    # args['framework'] = 'lightgbm'
-    # ml_model_def = lgb.LGBMRegressor
-    # mltype = 'reg'
-    # ml_init_args = { 'n_estimators': 100, 'max_depth': -1,
-    #                  'learning_rate': 0.1, 'num_leaves': 31,
-    #                  'n_jobs': 8, 'random_state': args['seed'] }
-    # ml_fit_args = {'verbose': False, 'early_stopping_rounds': 10}
+    args['framework'] = 'lightgbm'
+    ml_model_def = lgb.LGBMRegressor
+    mltype = 'reg'
+    ml_init_kwargs = { 'n_estimators': 100, 'max_depth': -1,
+                       'learning_rate': 0.1, 'num_leaves': 31,
+                       'n_jobs': 8, 'random_state': args['seed'] }
+    ml_fit_kwargs = {'verbose': False, 'early_stopping_rounds': 10}
 
     # Keras model def (reg_go)
-    from models.reg_go_model import reg_go_model_def, reg_go_callback_def
-    args['framework'] = 'keras'
-    ml_model_def = reg_go_model_def
-    keras_callbacks_def = reg_go_callback_def
-    mltype = 'reg'
-    ml_init_args = {'input_dim': xdata.shape[1], 'dr_rate': 0.1}
-    ml_fit_args = {'epochs': 300, 'batch_size': 32, 'verbose': 1}
+    # from models.reg_go_model import reg_go_model_def, reg_go_callback_def
+    # args['framework'] = 'keras'
+    # ml_model_def = reg_go_model_def
+    # keras_callbacks_def = reg_go_callback_def
+    # mltype = 'reg'
+    # ml_init_kwargs = {'input_dim': xdata.shape[1], 'dr_rate': 0.1}
+    # ml_fit_kwargs = {'epochs': 300, 'batch_size': 32, 'verbose': 1}
 
     # -----------------------------------------------
     #      Learning curve 
@@ -249,8 +249,8 @@ def run(args):
 
     if args['hp_file'] is None:
         # The regular workflow where all subsets are trained with the same HPs
-        lc_trn_args['ml_init_args'] = ml_init_args
-        lc_trn_args['ml_fit_args'] = ml_fit_args
+        lc_trn_args['ml_init_args'] = ml_init_kwargs
+        lc_trn_args['ml_fit_args'] = ml_fit_kwargs
         lc_scores = lc_obj.trn_learning_curve( **lc_trn_args )
     else:
         # The workflow follows PS-HPO where we a the set HPs per subset.
@@ -293,9 +293,9 @@ def run(args):
                 print_fn('{}: set to {}'.format(n, prm[n]))
                 args[n] = prm[n]
 
-            ml_init_args, ml_fit_args = get_model_args(args)
-            lc_trn_args['ml_init_args'] = ml_init_args
-            lc_trn_args['ml_fit_args'] = ml_fit_args
+            ml_init_kwargs, ml_fit_kwargs = get_model_args(args)
+            lc_trn_args['ml_init_args'] = ml_init_kwargs
+            lc_trn_args['ml_fit_args'] = ml_fit_kwargs
 
             per_subset_scores = lc_obj.trn_learning_curve( **lc_trn_args )
             lc_scores.append( per_subset_scores )
