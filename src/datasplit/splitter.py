@@ -58,7 +58,7 @@ def data_splitter( n_splits=1, gout=None, outfigs=None, ydata=None,
             np.savetxt( gout/f'{output}_vl_id.csv', vl_id.reshape(-1,1), fmt='%d', delimiter='', newline='\n' )
             np.savetxt( gout/f'{output}_te_id.csv', te_id.reshape(-1,1), fmt='%d', delimiter='', newline='\n' )
         
-        if ydata is not None:
+        if (ydata is not None) and (outfigs is not None):
             plot_hist(ydata, title=f'Train Set Histogram',
                       fit=None, bins=100, path=outfigs/f'{output}_y_hist_train.png')
             plot_hist(ydata, title=f'Val Set Histogram',
