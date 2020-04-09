@@ -1,32 +1,42 @@
 The leaning curve methods currently support scikit-learn, LightGBM, and tf.keras ML models.
 
+## Getting Started
+#### Get the code
+Clone the GitHub repo to get the necessary code. 
+```
+$ git clone https://github.com/adpartin/docking-learning-curves
+```
+#### Get the data
+Create ./data in the project dir and copy a batch of docking results of ML dataframes. For example `./data/docking_data_march_30/ml.<*>.parquet`.<br>
+To genearte ML docking dataframes, refer to `https://github.com/2019-ncovgroup/ML-docking-dataframe-generator`.
+
 ## Examples
 1. Serial execution (generates train/val/test splits on the fly; `n_splits` serial runs). Call `src/main_lc.py`.
 ```
-python src/main_lc.py --datapath data/docking_data_march_30/ml.ADRP-ADPR_pocket1_dock.parquet --n_splits 3 --lc_sizes 4 --max_size 185000 --gout ./trn_lc_main_serial_fly --trg_name reg
+$ python src/main_lc.py --datapath data/docking_data_march_30/ml.ADRP-ADPR_pocket1_dock.parquet --n_splits 3 --lc_sizes 4 --max_size 185000 --gout ./trn_lc_main_serial_fly --trg_name reg
 ```
 
 2. Serial execution (generates train/val/test splits on the fly; `n_splits` serial runs). Call `src/batch_lc.py` with `par_jobs` set to 1. This equivalent to example (1).
 ```
-python src/batch_lc.py --datapath data/docking_data_march_30/ml.ADRP-ADPR_pocket1_dock.parquet --n_splits 3 --lc_sizes 4 --max_size 185000 --gout ./trn_lc_batch_serial_fly --trg_name reg --par_jobs 1
+$ python src/batch_lc.py --datapath data/docking_data_march_30/ml.ADRP-ADPR_pocket1_dock.parquet --n_splits 3 --lc_sizes 4 --max_size 185000 --gout ./trn_lc_batch_serial_fly --trg_name reg --par_jobs 1
 ```
 
 3. Parallel execusion (generates train/val/test splits on the fly; `n_splits` parallel runs). Call `src/batch_lc.py` with `par_jobs` set to >1.
 ```
-python src/batch_lc.py --datapath data/docking_data_march_30/ml.ADRP-ADPR_pocket1_dock.parquet --n_splits 3 --lc_sizes 4 --max_size 185000 --gout ./trn_lc_batch_parallel_fly --trg_name reg --par_jobs 3
+$ python src/batch_lc.py --datapath data/docking_data_march_30/ml.ADRP-ADPR_pocket1_dock.parquet --n_splits 3 --lc_sizes 4 --max_size 185000 --gout ./trn_lc_batch_parallel_fly --trg_name reg --par_jobs 3
 ```
 
 4. Parallel execusion (use pre-computed data splits; need to provide the path to the splits; `n_splits` parallel runs). Call `src/batch_lc.py` with `par_jobs` set to >1.
 ```
-python src/batch_lc.py --datapath data/docking_data_march_30/ml.ADRP-ADPR_pocket1_dock.parquet --splitdir data/docking_data_march_30/ml.ADRP-ADPR_pocket1_dock.splits --n_splits 3 --lc_sizes 4 --gout ./trn_lc_batch_parallel_splits --trg_name reg --par_jobs 3
+$ python src/batch_lc.py --datapath data/docking_data_march_30/ml.ADRP-ADPR_pocket1_dock.parquet --splitdir data/docking_data_march_30/ml.ADRP-ADPR_pocket1_dock.splits --n_splits 3 --lc_sizes 4 --gout ./trn_lc_batch_parallel_splits --trg_name reg --par_jobs 3
 ```
 
 5. Aggregate results from parallel execusion and plot learning curves:
 ```
-python src/agg_results_from_runs.py --res_dir ./trn_lc_batch_parallel_fly
+$ python src/agg_results_from_runs.py --res_dir ./trn_lc_batch_parallel_fly
 ```
 ```
-python src/agg_results_from_runs.py --res_dir ./trn_lc_batch_parallel_splits
+$ python src/agg_results_from_runs.py --res_dir ./trn_lc_batch_parallel_splits
 ```
 
 ## Generate learning curves with your own ML model
