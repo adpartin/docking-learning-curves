@@ -7,7 +7,7 @@ Clone the GitHub repo to get the necessary code.
 $ git clone https://github.com/adpartin/docking-learning-curves
 ```
 #### Get the data
-Create ./data in the project dir and copy a batch of docking results of ML dataframes. For example `./data/docking_data_march_30/ml.<*>.parquet`.<br>
+Create `./data` in the project dir and copy a batch of docking results of (ML dataframes). For example `./data/docking_data_march_30/ml.<*>.parquet`.<br>
 To genearte ML docking dataframes, refer to `https://github.com/2019-ncovgroup/ML-docking-dataframe-generator`.
 
 ## Examples
