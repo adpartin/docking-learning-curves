@@ -13,7 +13,7 @@ To genearte ML docking dataframes, refer to https://github.com/2019-ncovgroup/ML
 ## Examples
 1. Serial execution (generates train/val/test splits on the fly; `n_splits` serial runs). Call `src/main_lc.py`.
 ```
-\$ python src/main_lc.py --datapath data/docking_data_march_30/ml.ADRP-ADPR_pocket1_dock.parquet --n_splits 3 --lc_sizes 4 --max_size 185000 --gout ./trn_lc_main_serial_fly --trg_name reg
+$ python src/main_lc.py --datapath data/docking_data_march_30/ml.ADRP-ADPR_pocket1_dock.parquet --n_splits 3 --lc_sizes 4 --max_size 185000 --gout ./trn_lc_main_serial_fly --trg_name reg
 ```
 
 2. Serial execution (generates train/val/test splits on the fly; `n_splits` serial runs). Call `src/batch_lc.py` with `par_jobs` set to 1. This equivalent to example (1).
