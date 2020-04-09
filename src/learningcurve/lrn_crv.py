@@ -39,7 +39,7 @@ from utils.plots import plot_hist, plot_runtime
 # --------------------------------------------------------------------------------
 class LearningCurve():
     """
-    Train estimator using multiple shards (train set sizes) and generate learning curves for multiple performance metrics.
+    Train estimator using multiple (train set) sizes and generate learning curves for multiple performance metrics.
     Example:
         lc = LearningCurve(xdata, ydata, cv_lists=(tr_ids, vl_ids))
         lc_scores = lc.trn_learning_curve(
@@ -57,10 +57,10 @@ class LearningCurve():
             mltype: str='reg',
 
             lc_step_scale: str='log2',
-            min_shard = 0,
-            max_shard = None,
-            n_shards: int=None,
-            shards_arr: list=[],
+            min_size = 0,
+            max_size = None,
+            lc_sizes: int=None,
+            lc_sizes_arr: list=[],
 
             print_fn=print,
             save_model=False,
@@ -74,18 +74,18 @@ class LearningCurve():
             cv_lists : tuple of 3 dicts, cv_lists[0] and cv_lists[1], cv_lists[2], that contain the tr, vl, and te folds, respectively
             cv_folds_arr : list that contains the specific folds in the cross-val run
 
-            lc_step_scale : specifies how to generate the shard values. 
+            lc_step_scale : specifies how to generate the size values. 
                 Available values: 'linear', 'log2', 'log10'.
 
-            min_shard : min shard value in the case when lc_step_scale is 'log2' or 'log10'
-            max_shard : max shard value in the case when lc_step_scale is 'log2' or 'log10'
+            min_size : min size value in the case when lc_step_scale is 'log2' or 'log10'
+            max_size : max size value in the case when lc_step_scale is 'log2' or 'log10'
 
-            n_shards : number of shards in the learning curve (used only in the lc_step_scale is 'linear')
-            shards_arr : list of ints specifying the shards to process (e.g., [128, 256, 512])
+            lc_sizes : number of sizes in the learning curve (used only in the lc_step_scale is 'linear')
+            lc_sizes_arr : list of ints specifying the sizes to process (e.g., [128, 256, 512])
             
-            shard_frac : list of relative numbers of training samples that are used to generate learning curves
-                e.g., shard_frac=[0.1, 0.2, 0.4, 0.7, 1.0].
-                If this arg is not provided, then the training shards are generated from n_shards and lc_step_scale.
+            size_frac : list of relative numbers of training samples that are used to generate learning curves
+                e.g., size_frac=[0.1, 0.2, 0.4, 0.7, 1.0].
+                If this arg is not provided, then the training sizes are generated from lc_sizes and lc_step_scale.
                 
             save_model : dump model if True (keras model ignores this arg since we load the best model to calc score)
         """
@@ -101,17 +101,17 @@ class LearningCurve():
         # self.cv_folds_arr = cv_folds_arr
 
         self.lc_step_scale = lc_step_scale 
-        self.min_shard = min_shard
-        self.max_shard = max_shard
-        self.n_shards = n_shards
-        self.shards_arr = shards_arr
+        self.min_size = min_size
+        self.max_size = max_size
+        self.lc_sizes = lc_sizes
+        self.lc_sizes_arr = lc_sizes_arr
 
         self.print_fn = print_fn
         self.save_model = save_model
         self.outdir = Path( outdir )
 
         self.create_split_dcts()
-        self.create_tr_shards_list()
+        self.create_tr_sizes_list()
         # self.trn_single_subset() # TODO: implement this method for better modularity
 
         
@@ -193,25 +193,25 @@ class LearningCurve():
         self.te_dct = te_dct
 
 
-    def create_tr_shards_list(self):
-        """ Generate a list of training shards (training sizes). """
-        if self.shards_arr is not None:
-            # No need to generate an array of training shards if shards_arr is specified
-            self.tr_shards = self.shards_arr
+    def create_tr_sizes_list(self):
+        """ Generate a list of training sizes (training sizes). """
+        if self.lc_sizes_arr is not None:
+            # No need to generate an array of training sizes if lc_sizes_arr is specified
+            self.tr_sizes = self.lc_sizes_arr
             
         else:
             # Fixed spacing
-            if self.max_shard is None:
+            if self.max_size is None:
                 key = list(self.tr_dct.keys())[0]
-                self.max_shard = len(self.tr_dct[key]) # total number of available training samples
+                self.max_size = len(self.tr_dct[key]) # total number of available training samples
 
-            # Full vector of shards
-            # (we create a vector with very large values so that we later truncate it with max_shard)
+            # Full vector of sizes
+            # (we create a vector with very large values so that we later truncate it with max_size)
             scale = self.lc_step_scale.lower()
             if scale == 'linear':
-                m = np.linspace(self.min_shard, self.max_shard, self.n_shards+1)[1:]
+                m = np.linspace(self.min_size, self.max_size, self.lc_sizes+1)[1:]
             else:
-                # we create very large vector m, so that we later truncate it with max_shard
+                # we create very large vector m, so that we later truncate it with max_size
                 if scale == 'log2':
                     m = 2 ** np.array(np.arange(30))[1:]
                 # elif scale == 'log':
@@ -219,43 +219,43 @@ class LearningCurve():
                 elif scale == 'log10':
                     m = 10 ** np.array(np.arange(8))[1:]
                 elif scale == 'log':
-                    if self.n_shards is not None:
+                    if self.lc_sizes is not None:
                         # www.researchgate.net/post/is_the_logarithmic_spaced_vector_the_same_in_any_base
-                        pw = np.linspace(0, self.n_shards-1, num=self.n_shards) / (self.n_shards-1)
-                        m = self.min_shard * (self.max_shard/self.min_shard) ** pw
-                        # m = 2 ** np.linspace(self.min_shard, self.max_shard, self.n_shards)
+                        pw = np.linspace(0, self.lc_sizes-1, num=self.lc_sizes) / (self.lc_sizes-1)
+                        m = self.min_size * (self.max_size/self.min_size) ** pw
+                        # m = 2 ** np.linspace(self.min_size, self.max_size, self.lc_sizes)
                         m = np.array( [int(i) for i in m] )
-                        self.tr_shards = m
-                        self.print_fn('\nTrain sizes: {}\n'.format(self.tr_shards))
+                        self.tr_sizes = m
+                        self.print_fn('\nTrain sizes: {}\n'.format(self.tr_sizes))
                         return None
                         
             # TODO: figure out if the code below is still necessary
             m = np.array( [int(i) for i in m] ) # cast to int
 
-            # Set min shard
-            idx_min = np.argmin( np.abs( m - self.min_shard ) )
-            if m[idx_min] > self.min_shard:
-                m = m[idx_min:]  # all values larger than min_shard
-                m = np.concatenate( (np.array([self.min_shard]), m) )  # preceed arr with specified min_shard
+            # Set min size
+            idx_min = np.argmin( np.abs( m - self.min_size ) )
+            if m[idx_min] > self.min_size:
+                m = m[idx_min:]  # all values larger than min_size
+                m = np.concatenate( (np.array([self.min_size]), m) )  # preceed arr with specified min_size
             else:
                 m = m[idx_min:]
 
-            # Set max shard
-            idx_max = np.argmin( np.abs( m - self.max_shard ) )
-            if m[idx_max] > self.max_shard:
+            # Set max size
+            idx_max = np.argmin( np.abs( m - self.max_size ) )
+            if m[idx_max] > self.max_size:
                 m = list(m[:idx_max])    # all values EXcluding the last one
-                m.append(self.max_shard)
+                m.append(self.max_size)
             else:
                 m = list(m[:idx_max+1])  # all values INcluding the last one
-                m.append(self.max_shard) # TODO: should we append this??
-                # If the diff btw max_samples and the latest shards (m[-1] - m[-2]) is "too small",
-                # then remove max_samples from the possible shards.
-                if 0.5*m[-3] > (m[-1] - m[-2]): m = m[:-1] # heuristic to drop the last shard
+                m.append(self.max_size) # TODO: should we append this??
+                # If the diff btw max_samples and the latest sizes (m[-1] - m[-2]) is "too small",
+                # then remove max_samples from the possible sizes.
+                if 0.5*m[-3] > (m[-1] - m[-2]): m = m[:-1] # heuristic to drop the last size
 
-            self.tr_shards = m
+            self.tr_sizes = m
         # --------------------------------------------
         
-        self.print_fn('\nTrain shards: {}\n'.format(self.tr_shards))
+        self.print_fn('\nTrain sizes: {}\n'.format(self.tr_sizes))
 
 
     def trn_learning_curve(self,
@@ -299,7 +299,7 @@ class LearningCurve():
         vl_scores_all = [] # list of dicts
         te_scores_all = [] # list of dicts
 
-        # Record runtime per shard
+        # Record runtime per size
         runtime_records = []
 
         # CV loop
@@ -324,9 +324,9 @@ class LearningCurve():
             yte = np.asarray( yte )            
             
             # Shards loop (iterate across the dataset sizes and train)
-            for i, tr_sz in enumerate(self.tr_shards):
+            for i, tr_sz in enumerate(self.tr_sizes):
                 # For each size: train model (and save) model; calc tr, vl and te scores
-                self.print_fn(f'\tTrain size: {tr_sz} ({i+1}/{len(self.tr_shards)})')   
+                self.print_fn(f'\tTrain size: {tr_sz} ({i+1}/{len(self.tr_sizes)})')   
 
                 # Sequentially get a subset of samples (the input dataset X must be shuffled)
                 xtr_sub = xtr.iloc[:tr_sz, :]

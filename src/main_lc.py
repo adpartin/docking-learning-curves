@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 import pandas as pd
-import lightgbm as lgb
 
 # File path
 filepath = Path(__file__).resolve().parent
@@ -67,11 +66,11 @@ def parse_args(args):
                         help='Feature normalization method (stnd, minmax, rbst) (default: None).')    
     # Learning curve
     parser.add_argument('--lc_step_scale', default='log', type=str, choices=['log', 'linear'],
-                        help='Scale of progressive sampling of shards in a learning curve (log2, log, log10, linear) (default: log).')
-    parser.add_argument('--min_shard', default=128, type=int, help='The lower bound for the shard sizes (default: 128).')
-    parser.add_argument('--max_shard', default=None, type=int, help='The upper bound for the shard sizes (default: None).')
-    parser.add_argument('--n_shards', default=5, type=int, help='Number of shards (default: 5).')
-    parser.add_argument('--shards_arr', nargs='+', type=int, default=None, help='List of the actual shards in the learning curve plot (default: None).')
+                        help='Scale of progressive sampling of subset sizes in a learning curve (log2, log, log10, linear) (default: log).')
+    parser.add_argument('--min_size', default=128, type=int, help='The lower bound for the subset size (default: 128).')
+    parser.add_argument('--max_size', default=None, type=int, help='The upper bound for the subset size (default: None).')
+    parser.add_argument('--lc_sizes', default=5, type=int, help='Number of subset sizes (default: 5).')
+    parser.add_argument('--lc_sizes_arr', nargs='+', type=int, default=None, help='List of the actual sizes in the learning curve plot (default: None).')
     parser.add_argument('--save_model', action='store_true', help='Whether to trained models (default: False).')
     parser.add_argument('--plot_fit', action='store_true', help='Whether to generate the fit (default: False).')
     
@@ -108,7 +107,7 @@ def run(args):
     else:
         gout = filepath.parent / 'trn'
         gout = gout / datapath.with_suffix('.lc').name
-        args['gout'] = str(gout)
+    args['gout'] = str(gout)
     os.makedirs(gout, exist_ok=True)
     
     # -----------------------------------------------
@@ -122,7 +121,7 @@ def run(args):
             rout = gout
         else:
             rout = gout / f'run_{split_id}'
-        args['rout'] = rout
+    args['rout'] = str(rout)
     os.makedirs(rout, exist_ok=True)
     
     # -----------------------------------------------
@@ -182,6 +181,7 @@ def run(args):
     ##                     'max_lr': args['clr_max_lr'], 'gamma': args['clr_gamma']}       
 
     # LGBM regressor model def
+    import lightgbm as lgb
     args['framework'] = 'lightgbm'
     ml_model_def = lgb.LGBMRegressor
     mltype = 'reg'
@@ -207,9 +207,9 @@ def run(args):
     # LC args
     lc_init_args = { 'cv_lists': cv_lists,
                      'n_splits': args['n_splits'], 'mltype': mltype,
-                     'lc_step_scale': args['lc_step_scale'], 'n_shards': args['n_shards'],
-                     'min_shard': args['min_shard'], 'max_shard': args['max_shard'],
-                     'outdir': args['rout'], 'shards_arr': args['shards_arr'],
+                     'lc_step_scale': args['lc_step_scale'], 'lc_sizes': args['lc_sizes'],
+                     'min_size': args['min_size'], 'max_size': args['max_size'],
+                     'outdir': rout, 'lc_sizes_arr': args['lc_sizes_arr'],
                      'print_fn': print_fn}
                     
     lc_trn_args = { 'framework': args['framework'], ## 'mltype': mltype,
@@ -227,11 +227,11 @@ def run(args):
     else:
         # The workflow follows PS-HPO where we a the set HPs per subset.
         # In this case we need to call the trn_learning_curve() method for
-        # every subset with appropriate HPs. We'll need to update shards_arr
+        # every subset with appropriate HPs. We'll need to update lc_sizes_arr
         # for every run of trn_learning_curve().
         fpath = verify_dirpath(args['hp_file'])
         hp = pd.read_csv(fpath)
-        hp.to_csv(args['rout']/'hpo_ps.csv', index=False)
+        hp.to_csv(rout/'hpo_ps.csv', index=False)
 
         # Params to update based on framework
         if args['framework'] == 'lightgbm':
@@ -246,14 +246,14 @@ def run(args):
         print_fn( df_print )
 
         # Find the intersect btw available and requested tr sizes
-        tr_sizes = list( set(lc_obj.tr_shards).intersection(set(hp['tr_size'].unique())) )
+        tr_sizes = list( set(lc_obj.tr_sizes).intersection(set(hp['tr_size'].unique())) )
         print_fn('\nIntersect btw available and requested tr sizes: {}'.format( tr_sizes ))
 
         lc_scores = []
         for sz in tr_sizes:
             prm = hp[hp['tr_size']==sz]
-            lrn_crv_init_args['shards_arr'] = [sz]
-            lc_obj.tr_shards = [sz] 
+            lrn_crv_init_args['lc_sizes_arr'] = [sz]
+            lc_obj.tr_sizes = [sz] 
             
             # Update model_init and model_fit params
             prm = prm.to_dict(orient='records')[0]  # unroll single-raw df into dict
@@ -276,21 +276,21 @@ def run(args):
         lc_scores = pd.concat(lc_scores, axis=0)
 
         # Save tr, vl, te separently
-        lc_scores[ lc_scores['set']=='tr' ].to_csv( args['rout']/'tr_lc_scores.csv', index=False) 
-        lc_scores[ lc_scores['set']=='vl' ].to_csv( args['rout']/'vl_lc_scores.csv', index=False) 
-        lc_scores[ lc_scores['set']=='te' ].to_csv( args['rout']/'te_lc_scores.csv', index=False) 
+        lc_scores[ lc_scores['set']=='tr' ].to_csv( rout/'tr_lc_scores.csv', index=False) 
+        lc_scores[ lc_scores['set']=='vl' ].to_csv( rout/'vl_lc_scores.csv', index=False) 
+        lc_scores[ lc_scores['set']=='te' ].to_csv( rout/'te_lc_scores.csv', index=False) 
 
     # Dump all scores
-    lc_scores.to_csv( args['rout']/'lc_scores.csv', index=False)
+    lc_scores.to_csv( rout/'lc_scores.csv', index=False)
 
     # Load results and plot
     kwargs = {'tr_set': 'te', 'xtick_scale': 'log2', 'ytick_scale': 'log2'}
-    lc_plots.plot_lc_many_metric( lc_scores, outdir=args['rout'], **kwargs )
+    lc_plots.plot_lc_many_metric( lc_scores, outdir=rout, **kwargs )
     # kwargs = {'tr_set': 'te', 'xtick_scale': 'linear', 'ytick_scale': 'linear'}
-    # lc_plots.plot_lc_many_metric( lc_scores, outdir=args['rout'], **kwargs )
+    # lc_plots.plot_lc_many_metric( lc_scores, outdir=rout, **kwargs )
     
     # Dump args
-    dump_dict(args, outpath=args['rout']/'args.txt')
+    dump_dict(args, outpath=rout/'args.txt')
     
     # ====================================
     """
@@ -314,10 +314,10 @@ def run(args):
                 ax=ax, ls='', marker='v', alpha=0.7,
                 **plot_args, label='Raw Data')
 
-        shard_min_idx = 0 if tot_pnts < n_pnts_fit else tot_pnts - n_pnts_fit
+        size_min_idx = 0 if tot_pnts < n_pnts_fit else tot_pnts - n_pnts_fit
 
         ax, _, gof = lc_plots.plot_lrn_crv_power_law(
-                x=scores_te['tr_size'][shard_min_idx:], y=scores_te[y_col_name][shard_min_idx:],
+                x=scores_te['tr_size'][size_min_idx:], y=scores_te[y_col_name][size_min_idx:],
                 **plot_args, plot_raw=False, ax=ax, alpha=1 );
 
         ax.legend(frameon=True, fontsize=10, loc='best')
@@ -330,25 +330,25 @@ def run(args):
 
         tot_pnts = len(scores_te['tr_size'])
         m0 = tot_pnts - n_pnts_ext
-        shard_min_idx = m0 - n_pnts_fit
+        size_min_idx = m0 - n_pnts_fit
 
         ax = None
 
         # Plot of all the points
         ax = lc_plots.plot_lrn_crv_new(
-                x=scores_te['tr_size'][0:shard_min_idx], y=scores_te[y_col_name][0:shard_min_idx],
+                x=scores_te['tr_size'][0:size_min_idx], y=scores_te[y_col_name][0:size_min_idx],
                 ax=ax, ls='', marker='v', alpha=0.8, color='k',
                 **plot_args, label='Excluded Points')
 
         # Plot of all the points
         ax = lc_plots.plot_lrn_crv_new(
-                x=scores_te['tr_size'][shard_min_idx:m0], y=scores_te[y_col_name][shard_min_idx:m0],
+                x=scores_te['tr_size'][size_min_idx:m0], y=scores_te[y_col_name][size_min_idx:m0],
                 ax=ax, ls='', marker='*', alpha=0.8, color='g',
                 **plot_args, label='Included Points')
 
         # Extrapolation
         ax, _, mae_et = lc_plots.lrn_crv_power_law_extrapolate(
-                x=scores_te['tr_size'][shard_min_idx:], y=scores_te[y_col_name][shard_min_idx:],
+                x=scores_te['tr_size'][size_min_idx:], y=scores_te[y_col_name][size_min_idx:],
                 n_pnts_ext=n_pnts_ext,
                 **plot_args, plot_raw_it=False, label_et='Extrapolation', ax=ax );
 

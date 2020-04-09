@@ -37,7 +37,7 @@ def data_splitter( n_splits=1, gout=None, outfigs=None, ydata=None,
     Return:
         tr_dct, vl_dct, te_dct : tuple of split dicts
     """
-    seeds = np.random.choice(n_splits, n_splits, replace=False)
+    seeds = np.random.choice(1000000, n_splits, replace=False)
 
     # These dicts will contain the splits
     tr_dct = {}
