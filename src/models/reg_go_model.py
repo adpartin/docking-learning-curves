@@ -4,7 +4,7 @@ from pathlib import Path
 
 # Utils
 filepath = Path(__file__).resolve().parent
-sys.path.append( os.path.abspath(filepath/'../ml') )
+# sys.path.append( os.path.abspath(filepath/'../ml') )
 from ml.keras_utils import r2_krs
 
 
@@ -31,10 +31,7 @@ except:
 
 def clr_keras_callback(mode=None, base_lr=1e-4, max_lr=1e-3, gamma=0.999994):
     """ Creates keras callback for cyclical learning rate. """
-    # keras_contrib = './keras_contrib/callbacks'
-    # sys.path.append(keras_contrib)
-    from cyclical_learning_rate import CyclicLR
-
+    from . cyclical_learning_rate import CyclicLR
     if mode == 'trng1':
         clr = CyclicLR(base_lr=base_lr, max_lr=max_lr, mode='triangular')
     elif mode == 'trng2':
@@ -50,7 +47,7 @@ def clr_keras_callback(mode=None, base_lr=1e-4, max_lr=1e-3, gamma=0.999994):
 #     return (1 - SS_res/(SS_tot + K.epsilon()))
 
 
-def reg_go_callback_def(outdir, ref_metric='val_loss', **clr_kwargs={}):
+def reg_go_callback_def(outdir, ref_metric='val_loss', **clr_kwargs):
     """ Required for lrn_crv.py """
     checkpointer = ModelCheckpoint( str(outdir/'model_best.h5'), monitor='val_loss', verbose=0,
                                     save_weights_only=False, save_best_only=True )
@@ -60,8 +57,8 @@ def reg_go_callback_def(outdir, ref_metric='val_loss', **clr_kwargs={}):
     early_stop = EarlyStopping( monitor=ref_metric, patience=50, verbose=1, mode='auto' )
 
     if bool(clr_kwargs):
-    # if self.clr_keras_kwargs['mode'] is not None:
         clr = clr_keras_callback( **clr_kwargs )
+        return [checkpointer, csv_logger, early_stop, reduce_lr, clr]
 
     return [checkpointer, csv_logger, early_stop, reduce_lr]
 
@@ -101,3 +98,5 @@ def reg_go_model_def( **model_init ):
                   optimizer=opt,
                   metrics=['mae', r2_krs])
     return model
+
+

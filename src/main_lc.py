@@ -176,10 +176,6 @@ def run(args):
     # -----------------------------------------------
     #      ML model configs
     # -----------------------------------------------
-    # CLR settings
-    ## clr_keras_args = {'mode': args['clr_mode'], 'base_lr': args['clr_base_lr'],
-    ##                     'max_lr': args['clr_max_lr'], 'gamma': args['clr_gamma']}       
-
     # LGBM regressor model def
     # import lightgbm as lgb
     # args['framework'] = 'lightgbm'
@@ -198,7 +194,7 @@ def run(args):
     keras_callbacks_def = reg_go_callback_def
     mltype = 'reg'
     ml_init_kwargs = {'input_dim': xdata.shape[1], 'dr_rate': 0.1}
-    ml_fit_kwargs = {'epochs': 300, 'batch_size': 32, 'verbose': 1}
+    ml_fit_kwargs = {'epochs': 50, 'batch_size': 32, 'verbose': 1}
     # clr_kwargs = {}
     clr_kwargs = {'mode': 'trng1', 'base_lr': 0.00005, 'max_lr': 0.0005, 'gamma': None}
     # clr_kwargs = {'mode': 'exp', 'base_lr': 0.00005, 'max_lr': 0.0005, 'gamma': 0.999994}
@@ -228,8 +224,6 @@ def run(args):
 
     if args['hp_file'] is None:
         # The regular workflow where all subsets are trained with the same HPs
-        # lc_trn_args['ml_init_args'] = ml_init_kwargs
-        # lc_trn_args['ml_fit_args'] = ml_fit_kwargs
         lc_scores = lc_obj.trn_learning_curve( **lc_trn_args )
     else:
         # The workflow follows PS-HPO where we a the set HPs per subset.

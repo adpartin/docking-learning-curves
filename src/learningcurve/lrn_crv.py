@@ -49,9 +49,7 @@ class LearningCurve():
     def __init__(self,
             X, Y,
             meta=None,
-
             cv_lists=None,  # (tr_id, vl_id, te_id)
-            # cv_folds_arr=None,
 
             n_splits: int=1,
             mltype: str='reg',
@@ -214,8 +212,6 @@ class LearningCurve():
                 # we create very large vector m, so that we later truncate it with max_size
                 if scale == 'log2':
                     m = 2 ** np.array(np.arange(30))[1:]
-                # elif scale == 'log':
-                    # m = np.exp( np.array(np.arange(8))[1:] )
                 elif scale == 'log10':
                     m = 10 ** np.array(np.arange(8))[1:]
                 elif scale == 'log':
@@ -264,10 +260,9 @@ class LearningCurve():
             ml_model_def,
             ml_init_args: dict={},
             ml_fit_args: dict={},
-            # ml_model_kwargs=None,
 
             keras_callbacks_def=None,
-            keras_callbacks_kwargs=None,
+            keras_callbacks_kwarg: dict={},
             
             ## metrics: list=['r2', 'neg_mean_absolute_error'],
             n_jobs: int=4,
@@ -282,18 +277,14 @@ class LearningCurve():
             metrics : allow to pass a string of metrics  TODO!
         """
         self.framework = framework
-        ## self.mltype = mltype
-        ## self.model_name = model_name
         
         self.ml_model_def = ml_model_def
-        self.ml_model_kwargs = ml_model_kwargs
+        self.ml_init_args = ml_init_args
+        self.ml_fit_args = ml_fit_args
 
         self.keras_callbacks_def = keras_callbacks_def
         self.keras_callbacks_kwargs = keras_callbacks_kwargs
         
-        self.ml_init_args = ml_init_args
-        self.ml_fit_args = ml_fit_args
-        ## self.clr_keras_args = clr_keras_args
         ## self.metrics = metrics
         self.n_jobs = n_jobs
         
@@ -306,9 +297,7 @@ class LearningCurve():
         runtime_records = []
 
         # CV loop
-        # TODO: consider removing this since we don't use CV loops anymore!
         for split_num in self.tr_dct.keys():
-            # split = split + 1
             self.print_fn(f'Split {split_num} out of {list(self.tr_dct.keys())}')    
 
             # Get the indices for this split
@@ -326,7 +315,7 @@ class LearningCurve():
             xte = np.asarray( xte )
             yte = np.asarray( yte )            
             
-            # Shards loop (iterate across the dataset sizes and train)
+            # Loop over subset sizes (iterate across the dataset sizes and train)
             for i, tr_sz in enumerate(self.tr_sizes):
                 # For each size: train model (and save) model; calc tr, vl and te scores
                 self.print_fn(f'\tTrain size: {tr_sz} ({i+1}/{len(self.tr_sizes)})')   
@@ -354,7 +343,7 @@ class LearningCurve():
                     model, trn_outdir, runtime = self.trn_keras_model(model=model, xtr_sub=xtr_sub, ytr_sub=ytr_sub,
                                                                       split=split_num, tr_sz=tr_sz, eval_set=eval_set)
                 elif self.framework=='pytorch':
-                    pass
+                    raise ValueError(f'Framework {self.framework} is not yet supported.')
                 else:
                     raise ValueError(f'Framework {self.framework} is not yet supported.')
                     
@@ -459,12 +448,7 @@ class LearningCurve():
     def trn_keras_model(self, model, xtr_sub, ytr_sub, split, tr_sz, eval_set=None):
         """ Train and save Keras model. """
         trn_outdir = self.create_trn_outdir(split, tr_sz)
-        # keras.utils.plot_model(model, to_file=self.outdir/'nn_model.png') # comment this when using Theta
                 
-        # if bool(self.clr_keras_args):
-        ## if self.clr_keras_args['mode'] is not None:
-        ##     keras_callbacks.append( ml_models.clr_keras_callback(**self.clr_keras_args) )
-
         # Fit params
         ml_fit_args = self.ml_fit_args.copy()
         ml_fit_args['validation_data'] = eval_set
@@ -488,8 +472,7 @@ class LearningCurve():
         if model_path.exists():
             # model = keras.models.load_model( str(model_path) )
             import tensorflow as tf
-            model = tf.keras.models.load_model( str(model_path),
-                                                custom_objects={'r2_krs': r2_krs} )
+            model = tf.keras.models.load_model( str(model_path), custom_objects={'r2_krs': r2_krs} )
         else:
             model = None
         return model, trn_outdir, runtime
