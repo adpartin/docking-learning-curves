@@ -181,24 +181,27 @@ def run(args):
     ##                     'max_lr': args['clr_max_lr'], 'gamma': args['clr_gamma']}       
 
     # LGBM regressor model def
-    import lightgbm as lgb
-    args['framework'] = 'lightgbm'
-    ml_model_def = lgb.LGBMRegressor
-    mltype = 'reg'
-    ml_init_kwargs = { 'n_estimators': 100, 'max_depth': -1,
-                       'learning_rate': 0.1, 'num_leaves': 31,
-                       'n_jobs': 8, 'random_state': None }
-    ml_fit_kwargs = {'verbose': False, 'early_stopping_rounds': 10}
-    keras_callbacks_def = None
+    # import lightgbm as lgb
+    # args['framework'] = 'lightgbm'
+    # ml_model_def = lgb.LGBMRegressor
+    # mltype = 'reg'
+    # ml_init_kwargs = { 'n_estimators': 100, 'max_depth': -1,
+    #                    'learning_rate': 0.1, 'num_leaves': 31,
+    #                    'n_jobs': 8, 'random_state': None }
+    # ml_fit_kwargs = {'verbose': False, 'early_stopping_rounds': 10}
+    # keras_callbacks_def = None
 
     # Keras model def (reg_go)
-    # from models.reg_go_model import reg_go_model_def, reg_go_callback_def
-    # args['framework'] = 'keras'
-    # ml_model_def = reg_go_model_def
-    # keras_callbacks_def = reg_go_callback_def
-    # mltype = 'reg'
-    # ml_init_kwargs = {'input_dim': xdata.shape[1], 'dr_rate': 0.1}
-    # ml_fit_kwargs = {'epochs': 300, 'batch_size': 32, 'verbose': 1}
+    from models.reg_go_model import reg_go_model_def, reg_go_callback_def
+    args['framework'] = 'keras'
+    ml_model_def = reg_go_model_def
+    keras_callbacks_def = reg_go_callback_def
+    mltype = 'reg'
+    ml_init_kwargs = {'input_dim': xdata.shape[1], 'dr_rate': 0.1}
+    ml_fit_kwargs = {'epochs': 300, 'batch_size': 32, 'verbose': 1}
+    # clr_kwargs = {}
+    clr_kwargs = {'mode': 'trng1', 'base_lr': 0.00005, 'max_lr': 0.0005, 'gamma': None}
+    # clr_kwargs = {'mode': 'exp', 'base_lr': 0.00005, 'max_lr': 0.0005, 'gamma': 0.999994}
 
 
     # -----------------------------------------------
@@ -212,17 +215,21 @@ def run(args):
                      'outdir': rout, 'lc_sizes_arr': args['lc_sizes_arr'],
                      'print_fn': print_fn}
                     
-    lc_trn_args = { 'framework': args['framework'], ## 'mltype': mltype,
+    lc_trn_args = { 'framework': args['framework'],
                     'n_jobs': args['n_jobs'], 
-                    'ml_model_def': ml_model_def, 'keras_callbacks_def': keras_callbacks_def}
+                    'ml_model_def': ml_model_def,
+                    'ml_init_args': ml_init_kwargs,
+                    'ml_fit_args': ml_fit_kwargs,
+                    'keras_callbacks_def': keras_callbacks_def,
+                    'keras_callbacks_kwargs': clr_kwargs }
 
     # LC object
     lc_obj = LearningCurve( X=xdata, Y=ydata, meta=meta, **lc_init_args )
 
     if args['hp_file'] is None:
         # The regular workflow where all subsets are trained with the same HPs
-        lc_trn_args['ml_init_args'] = ml_init_kwargs
-        lc_trn_args['ml_fit_args'] = ml_fit_kwargs
+        # lc_trn_args['ml_init_args'] = ml_init_kwargs
+        # lc_trn_args['ml_fit_args'] = ml_fit_kwargs
         lc_scores = lc_obj.trn_learning_curve( **lc_trn_args )
     else:
         # The workflow follows PS-HPO where we a the set HPs per subset.

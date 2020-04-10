@@ -259,17 +259,17 @@ class LearningCurve():
 
 
     def trn_learning_curve(self,
-            framework: str,  # 'lightgbm'
-            ## mltype: str,         # 'reg'
-            ## model_name: str, # 'lgb_reg'
+            framework: str,
 
             ml_model_def,
-            keras_callbacks_def,
-
             ml_init_args: dict={},
             ml_fit_args: dict={},
-            ## clr_keras_args: dict={},
-            ## metrics: list=['r2', 'neg_mean_absolute_error', 'neg_median_absolute_error', 'neg_mean_squared_error'],
+            # ml_model_kwargs=None,
+
+            keras_callbacks_def=None,
+            keras_callbacks_kwargs=None,
+            
+            ## metrics: list=['r2', 'neg_mean_absolute_error'],
             n_jobs: int=4,
             plot=True):
         """ 
@@ -286,7 +286,10 @@ class LearningCurve():
         ## self.model_name = model_name
         
         self.ml_model_def = ml_model_def
+        self.ml_model_kwargs = ml_model_kwargs
+
         self.keras_callbacks_def = keras_callbacks_def
+        self.keras_callbacks_kwargs = keras_callbacks_kwargs
         
         self.ml_init_args = ml_init_args
         self.ml_fit_args = ml_fit_args
@@ -465,7 +468,8 @@ class LearningCurve():
         # Fit params
         ml_fit_args = self.ml_fit_args.copy()
         ml_fit_args['validation_data'] = eval_set
-        ml_fit_args['callbacks'] = self.keras_callbacks_def( trn_outdir )
+        ml_fit_args['callbacks'] = self.keras_callbacks_def( outdir=trn_outdir,
+                **self.keras_callbacks_kwargs )
         
         # Train model
         t0 = time()

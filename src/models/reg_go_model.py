@@ -29,13 +29,28 @@ except:
     print('Could not import tensorflow.')
 
 
+def clr_keras_callback(mode=None, base_lr=1e-4, max_lr=1e-3, gamma=0.999994):
+    """ Creates keras callback for cyclical learning rate. """
+    # keras_contrib = './keras_contrib/callbacks'
+    # sys.path.append(keras_contrib)
+    from cyclical_learning_rate import CyclicLR
+
+    if mode == 'trng1':
+        clr = CyclicLR(base_lr=base_lr, max_lr=max_lr, mode='triangular')
+    elif mode == 'trng2':
+        clr = CyclicLR(base_lr=base_lr, max_lr=max_lr, mode='triangular2')
+    elif mode == 'exp':
+        clr = CyclicLR(base_lr=base_lr, max_lr=max_lr, mode='exp_range', gamma=gamma) # 0.99994; 0.99999994; 0.999994
+    return clr
+
+
 # def r2(y_true, y_pred):
 #     SS_res =  K.sum(K.square(y_true - y_pred))
 #     SS_tot = K.sum(K.square(y_true - K.mean(y_true)))
 #     return (1 - SS_res/(SS_tot + K.epsilon()))
 
 
-def reg_go_callback_def(outdir, ref_metric='val_loss'):
+def reg_go_callback_def(outdir, ref_metric='val_loss', **clr_kwargs={}):
     """ Required for lrn_crv.py """
     checkpointer = ModelCheckpoint( str(outdir/'model_best.h5'), monitor='val_loss', verbose=0,
                                     save_weights_only=False, save_best_only=True )
@@ -43,6 +58,11 @@ def reg_go_callback_def(outdir, ref_metric='val_loss'):
     reduce_lr = ReduceLROnPlateau( monitor=ref_metric, factor=0.75, patience=25, verbose=1,
                                    mode='auto', min_delta=0.0001, cooldown=3, min_lr=0.000000001 )
     early_stop = EarlyStopping( monitor=ref_metric, patience=50, verbose=1, mode='auto' )
+
+    if bool(clr_kwargs):
+    # if self.clr_keras_kwargs['mode'] is not None:
+        clr = clr_keras_callback( **clr_kwargs )
+
     return [checkpointer, csv_logger, early_stop, reduce_lr]
 
 
@@ -77,7 +97,6 @@ def reg_go_model_def( **model_init ):
     # opt = tf.keras.optimizers.SGD(learning_rate=lr_schedule)
     
     opt = SGD(lr=0.0001, momentum=0.9)
-    
     model.compile(loss='mean_squared_error',
                   optimizer=opt,
                   metrics=['mae', r2_krs])
