@@ -8,6 +8,11 @@ def extract_subset_fea(df, fea_list, fea_sep='_'):
     fea = [c for c in df.columns if (c.split(fea_sep)[0]) in fea_list]
     return df[fea]
     
+    
+def extract_subset_fea_col_names(df, fea_list, fea_sep='_'):
+    """ Extract features based feature prefix name. """
+    return [c for c in df.columns if (c.split(fea_sep)[0]) in fea_list]    
+    
             
 def cnt_fea(df, fea_sep='_', verbose=True, print_fn=print):
     """ Count the number of features per feature type. """

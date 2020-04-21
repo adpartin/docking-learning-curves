@@ -2,4 +2,4 @@
 !.gitignore
 *__*
 data/
-trn/
+trn*/
