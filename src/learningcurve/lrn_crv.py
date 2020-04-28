@@ -262,8 +262,9 @@ class LearningCurve():
             ml_fit_args: dict={},
 
             keras_callbacks_def=None,
-            keras_callbacks_kwarg: dict={},
-            
+            # keras_callbacks_kwargs: dict={},
+            keras_clr_args: dict={},
+
             ## metrics: list=['r2', 'neg_mean_absolute_error'],
             n_jobs: int=4,
             plot=True):
@@ -273,7 +274,7 @@ class LearningCurve():
             mltype : type to ml problem (reg or cls)
             ml_init_args : dict of parameters that initializes the estimator
             ml_fit_args : dict of parameters to the estimator's fit() method
-            clr_keras_args : 
+            keras_clr_args : 
             metrics : allow to pass a string of metrics  TODO!
         """
         self.framework = framework
@@ -283,7 +284,8 @@ class LearningCurve():
         self.ml_fit_args = ml_fit_args
 
         self.keras_callbacks_def = keras_callbacks_def
-        self.keras_callbacks_kwargs = keras_callbacks_kwargs
+        # self.keras_callbacks_kwargs = keras_callbacks_kwargs
+        self.keras_clr_args = keras_clr_args
         
         ## self.metrics = metrics
         self.n_jobs = n_jobs
@@ -452,8 +454,9 @@ class LearningCurve():
         # Fit params
         ml_fit_args = self.ml_fit_args.copy()
         ml_fit_args['validation_data'] = eval_set
-        ml_fit_args['callbacks'] = self.keras_callbacks_def( outdir=trn_outdir,
-                **self.keras_callbacks_kwargs )
+        ml_fit_args['callbacks'] = self.keras_callbacks_def(
+                outdir=trn_outdir, # **self.keras_callbacks_kwargs,
+                **self.keras_clr_args)
         
         # Train model
         t0 = time()
