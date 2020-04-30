@@ -197,7 +197,7 @@ def run(args):
     # ml_init_kwargs = {'input_dim': xdata.shape[1], 'dr_rate': 0.1}
     # ml_fit_kwargs = {'epochs': 50, 'batch_size': 32, 'verbose': 1}
     # # clr_kwargs = {}
-    # clr_kwargs = {'mode': 'trng1', 'base_lr': 0.00005, 'max_lr': 0.0005, 'gamma': None}
+    # keras_clr_kwargs = {'mode': 'trng1', 'base_lr': 0.00005, 'max_lr': 0.0005, 'gamma': None}
     # # clr_kwargs = {'mode': 'exp', 'base_lr': 0.00005, 'max_lr': 0.0005, 'gamma': 0.999994}
 
 
