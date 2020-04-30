@@ -186,7 +186,8 @@ def run(args):
                        'n_jobs': 8, 'random_state': None }
     ml_fit_kwargs = {'verbose': False, 'early_stopping_rounds': 10}
     keras_callbacks_def = None
-
+    keras_clr_kwargs = None
+    
     # Keras model def (reg_go)
     # from models.reg_go_model import reg_go_model_def, reg_go_callback_def
     # args['framework'] = 'keras'
@@ -217,7 +218,7 @@ def run(args):
                     'ml_init_args': ml_init_kwargs,
                     'ml_fit_args': ml_fit_kwargs,
                     'keras_callbacks_def': keras_callbacks_def,
-                    'keras_clr_args': clr_kwargs }
+                    'keras_clr_args': keras_clr_kwargs }
 
     # LC object
     lc_obj = LearningCurve( X=xdata, Y=ydata, meta=meta, **lc_init_args )
