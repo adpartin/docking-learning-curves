@@ -33,34 +33,29 @@ import learningcurve.lc_plots as lc_plots
     
 
 def parse_args(args):
-    parser = argparse.ArgumentParser(description='Generate learning curves.')
-
+    parser = argparse.ArgumentParser(description='Generate learning curves (LCs).')
     # Input data
     parser.add_argument('-dp', '--datapath', required=True, default=None, type=str,
                         help='Full path to data (default: None).')
-
     # Pre-computed data splits
     parser.add_argument('-sd', '--splitdir', default=None, type=str,
                         help='Full path to data splits (default: None).')
     parser.add_argument('--split_id', default=0, type=int, help='Split id (default: 0).')
-
     # Number of data splits (generated on the fly)
-    parser.add_argument('--n_splits', default=1, type=int, help='Number of splits for which to generate learning curves. This is used only if pre-computed splits were not provided (default: 3).')
-    
-    # Outdir
+    parser.add_argument('--n_splits', default=1, type=int,
+                        help='Number of splits for which to generate LCs (computed automatically) .\
+                        Used only if pre-computed splits not provided (default: 3).')
+    # Out dirs
     parser.add_argument('--gout', default=None, type=str,
-                        help='Gloabl outdir. Path that will contain results for the different pre-computed data splits (i.e., runs) (default: None).')
+                        help='Gloabl outdir to dump all the results (i.e., splits/runs) (default: None).')
     parser.add_argument('--rout', default=None, type=str,
-                        help='Run outdir. This is the path for the specific run (default: None).')
-
+                        help='Run outdir specific run/split (default: None).')
     # Target to predict
     parser.add_argument('-t', '--trg_name', default='reg', type=str, choices=['reg', 'cls'],
                         help='Name of target variable (default: reg).')
-
     # Feature types
     parser.add_argument('-df', '--drug_fea', nargs='+', default=['mod'], choices=['mod'],
                         help='Prefix to identify the drug features (default: mod).')
-
     # Feature scaling
     parser.add_argument('-sc', '--scaler', default=None, type=str, choices=['stnd', 'minmax', 'rbst'],
                         help='Feature normalization method (stnd, minmax, rbst) (default: None).')    
@@ -73,18 +68,12 @@ def parse_args(args):
     parser.add_argument('--lc_sizes_arr', nargs='+', type=int, default=None, help='List of the actual sizes in the learning curve plot (default: None).')
     parser.add_argument('--save_model', action='store_true', help='Whether to trained models (default: False).')
     parser.add_argument('--plot_fit', action='store_true', help='Whether to generate the fit (default: False).')
-    
-    # HPs file
+    # HPs
     parser.add_argument('--hp_file', default=None, type=str, help='File containing training hyperparameters (default: None).')
-    
-    # HPO metric
     parser.add_argument('--hpo_metric', default='mean_absolute_error', type=str, choices=['mean_absolute_error'],
                         help='Metric for HPO evaluation. Required for UPF workflow on Theta HPC (default: mean_absolute_error).')    
-    
     # Other
     parser.add_argument('--n_jobs', default=8, type=int, help='Default: 8.')
-    # parser.add_argument('--verbose', default=True, type=int, help='Default: True.')
-
     args, other_args = parser.parse_known_args(args)
     return args
 
@@ -105,8 +94,8 @@ def run(args):
     if args['gout'] is not None:
         gout = Path( args['gout'] ).resolve()
     else:
-        gout = filepath.parent / 'trn'
-        gout = gout / datapath.with_suffix('.lc').name
+        gout = filepath.parent/'trn'
+        gout = gout/datapath.with_suffix('.lc').name
     args['gout'] = str(gout)
     os.makedirs(gout, exist_ok=True)
     
@@ -117,7 +106,7 @@ def run(args):
         rout = gout/args['rout']
     else:
         if splitdir is None:
-            # rout = gout / f'run'
+            # rout = gout/f'run'
             rout = gout
         else:
             rout = gout/f'run_{split_id}'
@@ -176,7 +165,7 @@ def run(args):
     # -----------------------------------------------
     #      ML model configs
     # -----------------------------------------------
-    # LGBM regressor model def
+    # # LGBM regressor model definition
     # import lightgbm as lgb
     # args['framework'] = 'lightgbm'
     # ml_model_def = lgb.LGBMRegressor
@@ -195,11 +184,11 @@ def run(args):
     keras_callbacks_def = reg_go_callback_def
     mltype = 'reg'
     ml_init_kwargs = {'input_dim': xdata.shape[1], 'dr_rate': 0.1}
+
     ml_fit_kwargs = {'epochs': 1, 'batch_size': 32, 'verbose': 1}
     keras_clr_kwargs = {}
     # keras_clr_kwargs = {'mode': 'trng1', 'base_lr': 0.00005, 'max_lr': 0.0005, 'gamma': None}
-    # clr_kwargs = {'mode': 'exp', 'base_lr': 0.00005, 'max_lr': 0.0005, 'gamma': 0.999994}
-
+    # keras_clr_kwargs = {'mode': 'exp', 'base_lr': 0.00005, 'max_lr': 0.0005, 'gamma': 0.999994}
 
     # -----------------------------------------------
     #      Learning curve 
