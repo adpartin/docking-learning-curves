@@ -2,4 +2,5 @@
 !.gitignore
 *__*
 data/
+!data/sample_data.parquet
 trn*/

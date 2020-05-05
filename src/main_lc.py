@@ -114,13 +114,13 @@ def run(args):
     #       Run (single split) outdir
     # -----------------------------------------------
     if args['rout'] is not None:
-        rout = gout / args['rout']
+        rout = gout/args['rout']
     else:
         if splitdir is None:
             # rout = gout / f'run'
             rout = gout
         else:
-            rout = gout / f'run_{split_id}'
+            rout = gout/f'run_{split_id}'
     args['rout'] = str(rout)
     os.makedirs(rout, exist_ok=True)
     
@@ -177,28 +177,28 @@ def run(args):
     #      ML model configs
     # -----------------------------------------------
     # LGBM regressor model def
-    import lightgbm as lgb
-    args['framework'] = 'lightgbm'
-    ml_model_def = lgb.LGBMRegressor
-    mltype = 'reg'
-    ml_init_kwargs = { 'n_estimators': 100, 'max_depth': -1,
-                       'learning_rate': 0.1, 'num_leaves': 31,
-                       'n_jobs': 8, 'random_state': None }
-    ml_fit_kwargs = {'verbose': False, 'early_stopping_rounds': 10}
-    keras_callbacks_def = None
-    keras_clr_kwargs = None
+    # import lightgbm as lgb
+    # args['framework'] = 'lightgbm'
+    # ml_model_def = lgb.LGBMRegressor
+    # mltype = 'reg'
+    # ml_init_kwargs = { 'n_estimators': 100, 'max_depth': -1,
+    #                    'learning_rate': 0.1, 'num_leaves': 31,
+    #                    'n_jobs': 8, 'random_state': None }
+    # ml_fit_kwargs = {'verbose': False, 'early_stopping_rounds': 10}
+    # keras_callbacks_def = None
+    # keras_clr_kwargs = None
     
     # Keras model def (reg_go)
-    # from models.reg_go_model import reg_go_model_def, reg_go_callback_def
-    # args['framework'] = 'keras'
-    # ml_model_def = reg_go_model_def
-    # keras_callbacks_def = reg_go_callback_def
-    # mltype = 'reg'
-    # ml_init_kwargs = {'input_dim': xdata.shape[1], 'dr_rate': 0.1}
-    # ml_fit_kwargs = {'epochs': 50, 'batch_size': 32, 'verbose': 1}
-    # # clr_kwargs = {}
+    from models.reg_go_model import reg_go_model_def, reg_go_callback_def
+    args['framework'] = 'keras'
+    ml_model_def = reg_go_model_def
+    keras_callbacks_def = reg_go_callback_def
+    mltype = 'reg'
+    ml_init_kwargs = {'input_dim': xdata.shape[1], 'dr_rate': 0.1}
+    ml_fit_kwargs = {'epochs': 1, 'batch_size': 32, 'verbose': 1}
+    keras_clr_kwargs = {}
     # keras_clr_kwargs = {'mode': 'trng1', 'base_lr': 0.00005, 'max_lr': 0.0005, 'gamma': None}
-    # # clr_kwargs = {'mode': 'exp', 'base_lr': 0.00005, 'max_lr': 0.0005, 'gamma': 0.999994}
+    # clr_kwargs = {'mode': 'exp', 'base_lr': 0.00005, 'max_lr': 0.0005, 'gamma': 0.999994}
 
 
     # -----------------------------------------------
