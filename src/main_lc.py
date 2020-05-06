@@ -69,6 +69,7 @@ def parse_args(args):
     parser.add_argument('--save_model', action='store_true', help='Whether to trained models (default: False).')
     parser.add_argument('--plot_fit', action='store_true', help='Whether to generate the fit (default: False).')
     # HPs
+    parser.add_argument('--epoch', default=1, type=int, help='Number of epochs (default: None).')
     parser.add_argument('--hp_file', default=None, type=str, help='File containing training hyperparameters (default: None).')
     parser.add_argument('--hpo_metric', default='mean_absolute_error', type=str, choices=['mean_absolute_error'],
                         help='Metric for HPO evaluation. Required for UPF workflow on Theta HPC (default: mean_absolute_error).')    
@@ -185,7 +186,7 @@ def run(args):
     mltype = 'reg'
     ml_init_kwargs = {'input_dim': xdata.shape[1], 'dr_rate': 0.1}
 
-    ml_fit_kwargs = {'epochs': 1, 'batch_size': 32, 'verbose': 1}
+    ml_fit_kwargs = {'epochs': args['epoch'], 'batch_size': 32, 'verbose': 1}
     keras_clr_kwargs = {}
     # keras_clr_kwargs = {'mode': 'trng1', 'base_lr': 0.00005, 'max_lr': 0.0005, 'gamma': None}
     # keras_clr_kwargs = {'mode': 'exp', 'base_lr': 0.00005, 'max_lr': 0.0005, 'gamma': 0.999994}
