@@ -1,6 +1,6 @@
 #!/bin/bash
 #BSUB -P med106
-#BSUB -W 0:10
+#BSUB -W 02:00
 #BSUB -nnodes 15
 #BSUB -J my-bsub
 # ----------------------------------------------
