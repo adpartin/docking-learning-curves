@@ -17,9 +17,10 @@ mkdir -p $gout
 
 export CUDA_VISIBLE_DEVICES=$device
 
-DATAPATH="data/sample.data.parquet"
-EPOCH=2
-# EPOCH=200
+# DATAPATH="data/sample.data.parquet"
+DATAPATH="data/ml.ADRP.parquet"
+# EPOCH=2
+EPOCH=350
 
 echo "Using cuda device $device"
 echo "CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
