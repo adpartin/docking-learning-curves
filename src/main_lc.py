@@ -69,6 +69,7 @@ def parse_args(args):
     parser.add_argument('--save_model', action='store_true', help='Whether to trained models (default: False).')
     parser.add_argument('--plot_fit', action='store_true', help='Whether to generate the fit (default: False).')
     # HPs
+    parser.add_argument('--ml', default='lgb', type=str, choices=['lgb', 'keras'], help='Choose ML model (default: lgb).')
     parser.add_argument('--epoch', default=1, type=int, help='Number of epochs (default: None).')
     parser.add_argument('--hp_file', default=None, type=str, help='File containing training hyperparameters (default: None).')
     parser.add_argument('--hpo_metric', default='mean_absolute_error', type=str, choices=['mean_absolute_error'],
@@ -166,30 +167,32 @@ def run(args):
     # -----------------------------------------------
     #      ML model configs
     # -----------------------------------------------
-    # # LGBM regressor model definition
-    # import lightgbm as lgb
-    # args['framework'] = 'lightgbm'
-    # ml_model_def = lgb.LGBMRegressor
-    # mltype = 'reg'
-    # ml_init_kwargs = { 'n_estimators': 100, 'max_depth': -1,
-    #                    'learning_rate': 0.1, 'num_leaves': 31,
-    #                    'n_jobs': 8, 'random_state': None }
-    # ml_fit_kwargs = {'verbose': False, 'early_stopping_rounds': 10}
-    # keras_callbacks_def = None
-    # keras_clr_kwargs = None
-    
-    # Keras model def (reg_go)
-    from models.reg_go_model import reg_go_model_def, reg_go_callback_def
-    args['framework'] = 'keras'
-    ml_model_def = reg_go_model_def
-    keras_callbacks_def = reg_go_callback_def
-    mltype = 'reg'
-    ml_init_kwargs = {'input_dim': xdata.shape[1], 'dr_rate': 0.1}
+    if args['ml']=='lgb':
+        # LGBM regressor model definition
+        import lightgbm as lgb
+        framework = 'lightgbm'
+        ml_model_def = lgb.LGBMRegressor
+        mltype = 'reg'
+        ml_init_kwargs = { 'n_estimators': 100, 'max_depth': -1,
+                           'learning_rate': 0.1, 'num_leaves': 31,
+                           'n_jobs': 8, 'random_state': None }
+        ml_fit_kwargs = {'verbose': False, 'early_stopping_rounds': 10}
+        keras_callbacks_def = None
+        keras_clr_kwargs = None
 
-    ml_fit_kwargs = {'epochs': args['epoch'], 'batch_size': 32, 'verbose': 1}
-    keras_clr_kwargs = {}
-    # keras_clr_kwargs = {'mode': 'trng1', 'base_lr': 0.00005, 'max_lr': 0.0005, 'gamma': None}
-    # keras_clr_kwargs = {'mode': 'exp', 'base_lr': 0.00005, 'max_lr': 0.0005, 'gamma': 0.999994}
+    elif args['ml']=='keras':
+        # Keras model def (reg_go)
+        from models.reg_go_model import reg_go_model_def, reg_go_callback_def
+        framework = 'keras'
+        ml_model_def = reg_go_model_def
+        keras_callbacks_def = reg_go_callback_def
+        mltype = 'reg'
+        ml_init_kwargs = {'input_dim': xdata.shape[1], 'dr_rate': 0.1}
+
+        ml_fit_kwargs = {'epochs': args['epoch'], 'batch_size': 32, 'verbose': 1}
+        keras_clr_kwargs = {}
+        # keras_clr_kwargs = {'mode': 'trng1', 'base_lr': 0.00005, 'max_lr': 0.0005, 'gamma': None}
+        # keras_clr_kwargs = {'mode': 'exp', 'base_lr': 0.00005, 'max_lr': 0.0005, 'gamma': 0.999994}
 
     # -----------------------------------------------
     #      Learning curve 
@@ -202,7 +205,7 @@ def run(args):
                      'outdir': rout, 'lc_sizes_arr': args['lc_sizes_arr'],
                      'print_fn': print_fn}
                     
-    lc_trn_args = { 'framework': args['framework'],
+    lc_trn_args = { 'framework': framework,
                     'n_jobs': args['n_jobs'], 
                     'ml_model_def': ml_model_def,
                     'ml_init_args': ml_init_kwargs,
@@ -226,11 +229,11 @@ def run(args):
         hp.to_csv(rout/'hpo_ps.csv', index=False)
 
         # Params to update based on framework
-        if args['framework'] == 'lightgbm':
+        if framework == 'lightgbm':
             prm_names = ['gbm_trees', 'gbm_max_depth', 'gbm_lr', 'gbm_leaves']
-        elif args['framework'] == 'sklearn':
+        elif framework == 'sklearn':
             prm_names = ['rf_trees']
-        elif args['framework'] == 'keras':
+        elif framework == 'keras':
             prm_names = ['dr_rate', 'opt', 'lr', 'batchnorm', 'batch_size']
 
         # Params of interest
