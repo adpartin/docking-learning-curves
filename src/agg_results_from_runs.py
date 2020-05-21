@@ -24,7 +24,6 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 import pandas as pd
-import lightgbm as lgb
 
 # File path
 filepath = Path(__file__).resolve().parent
