@@ -54,8 +54,10 @@ def parse_args(args):
     parser.add_argument('-t', '--trg_name', default='reg', type=str, choices=['reg', 'cls'],
                         help='Name of target variable (default: reg).')
     # Feature types
-    parser.add_argument('-df', '--drug_fea', nargs='+', default=['mod'], choices=['mod'],
-                        help='Prefix to identify the drug features (default: mod).')
+    parser.add_argument('-fp', '--fea_prfx', nargs='+', default=['dsc'], choices=['dsc','ecfp2'],
+                        help='Prefix to identify the features (default: dsc).')
+    parser.add_argument('-fs', '--fea_sep', default='.', choices=['.'],
+                        help="Separator btw fea prefix and fea name (default: '.').")
     # Feature scaling
     parser.add_argument('-sc', '--scaler', default=None, type=str, choices=['stnd', 'minmax', 'rbst'],
                         help='Feature normalization method (stnd, minmax, rbst) (default: None).')    
@@ -132,8 +134,9 @@ def run(args):
     print_fn('data.shape {}'.format(data.shape))
     
     # Get features (x), target (y), and meta
-    fea_list = args['drug_fea']
-    xdata = extract_subset_fea(data, fea_list=fea_list, fea_sep='.')
+    fea_list = args['fea_prfx']
+    fea_sep = args['fea_sep']
+    xdata = extract_subset_fea(data, fea_list=fea_list, fea_sep=fea_sep)
     meta = data.drop( columns=xdata.columns )
     ydata = meta[[ args['trg_name'] ]]
     del data
