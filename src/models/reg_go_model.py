@@ -1,6 +1,5 @@
-import os
-import sys
 from pathlib import Path
+import numpy as np
 
 # Utils
 filepath = Path(__file__).resolve().parent
@@ -13,7 +12,7 @@ try:
     if int(tf.__version__.split('.')[0]) < 2:
         import keras
         from keras.models import load_model
-        from keras.callbacks import ModelCheckpoint, CSVLogger, ReduceLROnPlateau, EarlyStopping, TensorBoard
+        from keras.callbacks import ModelCheckpoint, CSVLogger, ReduceLROnPlateau, EarlyStopping
         from keras.utils import plot_model
     else:
         from tensorflow.keras.models import load_model
@@ -37,7 +36,7 @@ def clr_keras_callback(mode=None, base_lr=1e-4, max_lr=1e-3, gamma=0.999994):
     elif mode == 'trng2':
         clr = CyclicLR(base_lr=base_lr, max_lr=max_lr, mode='triangular2')
     elif mode == 'exp':
-        clr = CyclicLR(base_lr=base_lr, max_lr=max_lr, mode='exp_range', gamma=gamma) # 0.99994; 0.99999994; 0.999994
+        clr = CyclicLR(base_lr=base_lr, max_lr=max_lr, mode='exp_range', gamma=gamma)
     return clr
 
 
@@ -49,12 +48,14 @@ def clr_keras_callback(mode=None, base_lr=1e-4, max_lr=1e-3, gamma=0.999994):
 
 def reg_go_callback_def(outdir, ref_metric='val_loss', **clr_kwargs):
     """ Required for lrn_crv.py """
-    checkpointer = ModelCheckpoint( str(outdir/'model_best.h5'), monitor='val_loss', verbose=0,
-                                    save_weights_only=False, save_best_only=True )
-    csv_logger = CSVLogger( outdir/'training.log' )
-    reduce_lr = ReduceLROnPlateau( monitor=ref_metric, factor=0.75, patience=25, verbose=1,
-                                   mode='auto', min_delta=0.0001, cooldown=3, min_lr=0.000000001 )
-    early_stop = EarlyStopping( monitor=ref_metric, patience=50, verbose=1, mode='auto' )
+    checkpointer = ModelCheckpoint(
+        str(outdir/'model_best.h5'), monitor='val_loss', verbose=0,
+        save_weights_only=False, save_best_only=True)
+    csv_logger = CSVLogger(outdir/'training.log')
+    reduce_lr = ReduceLROnPlateau(
+        monitor=ref_metric, factor=0.75, patience=25, verbose=1,
+        mode='auto', min_delta=0.0001, cooldown=3, min_lr=0.000000001)
+    early_stop = EarlyStopping(monitor=ref_metric, patience=50, verbose=1, mode='auto')
 
     if bool(clr_kwargs):
         clr = clr_keras_callback( **clr_kwargs )
@@ -65,7 +66,7 @@ def reg_go_callback_def(outdir, ref_metric='val_loss', **clr_kwargs):
 
 def reg_go_arch(input_dim, dr_rate=0.1):
     DR = dr_rate
-    inputs = Input(shape=(input_dim,))
+    inputs = Input(shape=(input_dim,), name='inputs')
     x = Dense(250, activation='relu')(inputs)
     x = Dropout(DR)(x)
     x = Dense(125, activation='relu')(x)
@@ -80,9 +81,9 @@ def reg_go_arch(input_dim, dr_rate=0.1):
     return model
 
 
-def reg_go_model_def( **model_init ):
-    model = reg_go_arch( **model_init )
-    
+def reg_go_model_def(**model_init):
+    model = reg_go_arch(**model_init)
+
     # www.tensorflow.org/addons/api_docs/python/tfa/optimizers/TriangularCyclicalLearningRate
     # from tensorflow.keras.optimizers import schedules
     # lr_schedule = schedules.TriangularCyclicalLearningRate(
@@ -92,7 +93,7 @@ def reg_go_model_def( **model_init ):
     #     scale_mode='cycle',
     #     name='MyCyclicScheduler')
     # opt = tf.keras.optimizers.SGD(learning_rate=lr_schedule)
-    
+
     opt = SGD(lr=0.0001, momentum=0.9)
     model.compile(loss='mean_squared_error',
                   optimizer=opt,
@@ -100,3 +101,12 @@ def reg_go_model_def( **model_init ):
     return model
 
 
+def data_prep_reg_go_def(xdata):
+    """
+    This func prepare the dataset for keras model.
+    This function works in a similar way as DataLoader
+    in PyTorch.
+    """
+    xdata = np.asarray( xdata )
+    x_dct = {'inputs': xdata}
+    return x_dct

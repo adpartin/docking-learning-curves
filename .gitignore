@@ -1,6 +1,6 @@
 .*
 !.gitignore
+
 *__*
 /data/
-/out/
-/trn*/
+/*out*/

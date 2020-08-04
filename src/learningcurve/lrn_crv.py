@@ -6,6 +6,7 @@ import os
 import sys
 from pathlib import Path
 from time import time
+from glob import glob
 
 import sklearn
 import numpy as np
@@ -21,19 +22,12 @@ from scipy import optimize
 
 from pandas.api.types import is_string_dtype
 from sklearn.preprocessing import LabelEncoder
-# from sklearn.externals import joblib
 import joblib
-
-# Utils
-filepath = Path(__file__).resolve().parent
-# sys.path.append( os.path.abspath(filepath/'../ml') )
-# sys.path.append( os.path.abspath(filepath/'../utils') )
-# sys.path.append( os.path.abspath(filepath/'../datasplit') )
 
 from datasplit.splitter import data_splitter
 from ml.keras_utils import save_krs_history, plot_prfrm_metrics, r2_krs
 from ml.evals import calc_preds, calc_scores, dump_preds
-from utils.utils import dump_dict
+from utils.utils import dump_dict, verify_path
 from utils.plots import plot_hist, plot_runtime
 
 
@@ -113,10 +107,13 @@ class LearningCurve():
         self.create_tr_sizes_list()
         # self.trn_single_subset() # TODO: implement this method for better modularity
 
-        
+
     def create_split_dcts(self):
-        """ Converts a tuple of arrays self.cv_lists into two dicts, tr_dct, vl_dct, and te_dict.
-        Both sets of data structures contain the splits of all the k-folds. """
+        """
+        Converts a tuple of arrays self.cv_lists into two dicts, tr_dct, vl_dct,
+        and te_dict. Both sets of data structures contain the splits of all the
+        k-folds.
+        """
         tr_dct = {}
         vl_dct = {}
         te_dct = {}
@@ -137,7 +134,7 @@ class LearningCurve():
 
         #     if self.cv_folds_arr is None:
         #         self.cv_folds_arr = [f+1 for f in range(self.cv_folds)]
-                
+
         #     for fold in range(tr_id.shape[1]):
         #         # cv_folds_arr contains the specific folds we wish to process
         #         if fold+1 in self.cv_folds_arr:
@@ -169,7 +166,7 @@ class LearningCurve():
                 raise ValueError(f'n_splits must be int>1. Got {n_splits}.')
             """
                 # cv is sklearn splitter
-                self.cv_folds = cv.get_n_splits() 
+                self.cv_folds = cv.get_n_splits()
 
             if cv_folds == 1:
                 self.vl_size = cv.test_size
@@ -180,7 +177,7 @@ class LearningCurve():
                     splitter = self.cv.split(self.X, np.argmax(self.Y, axis=1))
             else:
                 splitter = self.cv.split(self.X, self.Y)
-            
+
             # Generate the splits
             for fold, (tr_vec, vl_vec) in enumerate(splitter):
                 tr_dct[fold] = tr_vec
@@ -196,8 +193,8 @@ class LearningCurve():
         """ Generate a list of training sizes (training sizes). """
         if self.lc_sizes_arr is not None:
             # No need to generate an array of training sizes if lc_sizes_arr is specified
-            self.tr_sizes = self.lc_sizes_arr
-            
+            self.tr_sizes = np.asarray(self.lc_sizes_arr)
+
         else:
             # Fixed spacing
             if self.max_size is None:
@@ -225,7 +222,7 @@ class LearningCurve():
                         self.tr_sizes = m
                         self.print_fn('\nTrain sizes: {}\n'.format(self.tr_sizes))
                         return None
-                        
+
             # TODO: figure out if the code below is still necessary
             m = np.array( [int(i) for i in m] ) # cast to int
 
@@ -251,7 +248,7 @@ class LearningCurve():
 
             self.tr_sizes = m
         # --------------------------------------------
-        
+
         self.print_fn('\nTrain sizes: {}\n'.format(self.tr_sizes))
 
 
@@ -261,6 +258,9 @@ class LearningCurve():
             ml_model_def,
             ml_init_args: dict={},
             ml_fit_args: dict={},
+            data_prep_def=None,
+
+            ps_hpo_dir: str=None,
 
             keras_callbacks_def=None,
             # keras_callbacks_kwargs: dict={},
@@ -269,114 +269,162 @@ class LearningCurve():
             ## metrics: list=['r2', 'neg_mean_absolute_error'],
             n_jobs: int=4,
             plot=True):
-        """ 
+        """
         Args:
             framework : ml framework (keras, lightgbm, or sklearn)
             mltype : type to ml problem (reg or cls)
+            ml_model_def : func than create the ml model
             ml_init_args : dict of parameters that initializes the estimator
             ml_fit_args : dict of parameters to the estimator's fit() method
-            keras_clr_args : 
+            data_prep_def : func that prepares data for keras model
+            keras_clr_args :
             metrics : allow to pass a string of metrics  TODO!
         """
         self.framework = framework
-        
+
         self.ml_model_def = ml_model_def
         self.ml_init_args = ml_init_args
         self.ml_fit_args = ml_fit_args
+        self.data_prep_def = data_prep_def
+
+        if ps_hpo_dir is not None:
+            from utils.k_tuner import read_hp_prms
+            self.ps_hpo_dir = Path(ps_hpo_dir)
+            files = glob( str(self.ps_hpo_dir/'tr_sz*') )
+            hp_sizes = { int(f.split(os.sep)[-1].split('tr_sz_')[-1]): Path(f) for f in files }
+            self.hp_sizes = { k: hp_sizes[k] for k in sorted(list(hp_sizes.keys())) } # sort dict by key
+        else:
+            self.hp_sizes = None
 
         self.keras_callbacks_def = keras_callbacks_def
         # self.keras_callbacks_kwargs = keras_callbacks_kwargs
         self.keras_clr_args = keras_clr_args
-        
+
         ## self.metrics = metrics
         self.n_jobs = n_jobs
-        
+
         # Start nested loop of train size and cv folds
-        tr_scores_all = [] # list of dicts
-        vl_scores_all = [] # list of dicts
-        te_scores_all = [] # list of dicts
+        tr_scores_all = []  # list of dicts
+        vl_scores_all = []  # list of dicts
+        te_scores_all = []  # list of dicts
 
         # Record runtime per size
         runtime_records = []
 
         # CV loop
         for split_num in self.tr_dct.keys():
-            self.print_fn(f'Split {split_num} out of {list(self.tr_dct.keys())}')    
+            self.print_fn(f'Split {split_num} out of {list(self.tr_dct.keys())}')
 
             # Get the indices for this split
-            tr_id = self.tr_dct[ split_num ]
-            vl_id = self.vl_dct[ split_num ]
-            te_id = self.te_dct[ split_num ]
-            
-            # Extract Train set T, Validation set V, and Test set E
-            xtr, ytr, mtr = self.get_data_by_id( tr_id ) # samples from xtr are sequentially sampled for TRAIN
-            xvl, yvl, mvl = self.get_data_by_id( vl_id ) # fixed set of VAL samples for the current CV split
-            xte, yte, mte = self.get_data_by_id( te_id ) # fixed set of TEST samples for the current CV split
+            tr_id = self.tr_dct[split_num]
+            vl_id = self.vl_dct[split_num]
+            te_id = self.te_dct[split_num]
 
-            xvl = np.asarray( xvl )
-            yvl = np.asarray( yvl )
-            xte = np.asarray( xte )
-            yte = np.asarray( yte )            
-            
+            # Extract Train set T, Validation set V, and Test set E
+            xtr_df, ytr_df, mtr_df = self.get_data_by_id(tr_id) # samples from xtr are sequentially sampled for TRAIN
+            xvl_df, yvl_df, mvl_df = self.get_data_by_id(vl_id) # fixed set of VAL samples for the current CV split
+            xte_df, yte_df, mte_df = self.get_data_by_id(te_id) # fixed set of TEST samples for the current CV split
+
+            # New
+            # xvl = np.asarray(xvl_df)
+            yvl = np.asarray(yvl_df)
+            # xte = np.asarray(xte_df)
+            yte = np.asarray(yte_df)
+
             # Loop over subset sizes (iterate across the dataset sizes and train)
             for i, tr_sz in enumerate(self.tr_sizes):
                 # For each size: train model (and save) model; calc tr, vl and te scores
-                self.print_fn(f'\tTrain size: {tr_sz} ({i+1}/{len(self.tr_sizes)})')   
+                self.print_fn(f'\tTrain size: {tr_sz} ({i+1}/{len(self.tr_sizes)})')
 
                 # Sequentially get a subset of samples (the input dataset X must be shuffled)
-                xtr_sub = xtr.iloc[:tr_sz, :]
-                ytr_sub = ytr.iloc[:tr_sz]
-                mtr_sub = mtr.iloc[:tr_sz, :]
-                
-                xtr_sub = np.asarray( xtr_sub )
-                ytr_sub = np.asarray( ytr_sub )                
-                
+                xtr_sub_df = xtr_df.iloc[:tr_sz, :]
+                ytr_sub_df = ytr_df.iloc[:tr_sz]
+                mtr_sub_df = mtr_df.iloc[:tr_sz, :]
+
+                # New
+                # xtr_sub = np.asarray( xtr_sub_df )
+                ytr_sub = np.asarray(ytr_sub_df)
+
+                # HP set per tr size
+                # import pdb; pdb.set_trace()
+                if self.hp_sizes is not None:
+                    # files = glob( str(self.ps_hpo_dir/'tr_sz*') )
+                    # hp_sizes = { int(f.split(os.sep)[-1].split('tr_sz_')[-1]): Path(f) for f in files }
+                    # hp_sizes = { k: hp_sizes[k] for k in sorted(list(hp_sizes.keys())) } # sort dict by key
+                    keys_vec = list(self.hp_sizes.keys())
+                    idx_min = np.argmin( np.abs( keys_vec - tr_sz ) )
+                    hp_path = self.hp_sizes[ keys_vec[idx_min] ]
+                    hp_path = hp_path/'best_hps.txt'
+                    # self.ml_init_args = read_hp_prms( hp_path )
+                    # self.ml_init_args['input_dim'] = xtr_sub_df.shape[1] 
+                    ml_init_args = read_hp_prms(hp_path)
+                    ml_init_args.update(self.ml_init_args)
+
+                if self.data_prep_def is not None:
+                    xtr_sub = self.data_prep_def(xtr_sub_df)
+                    xvl = self.data_prep_def(xvl_df)
+                    xte = self.data_prep_def(xte_df)
+                else:
+                    xtr_sub = np.asarray(xtr_sub_df)
+                    xvl = np.asarray(xvl_df)
+                    xte = np.asarray(xte_df)
+
+
                 # Get the estimator
-                model = self.ml_model_def( **self.ml_init_args )
-                
+                # model = self.ml_model_def(**self.ml_init_args)
+                model = self.ml_model_def(**ml_init_args)
+
                 # Train
                 eval_set = (xvl, yvl)
-                if self.framework=='lightgbm':
-                    model, trn_outdir, runtime = self.trn_lgbm_model(model=model, xtr_sub=xtr_sub, ytr_sub=ytr_sub,
-                                                                     split=split_num, tr_sz=tr_sz, eval_set=eval_set)
-                elif self.framework=='sklearn':
-                    model, trn_outdir, runtime = self.trn_sklearn_model(model=model, xtr_sub=xtr_sub, ytr_sub=ytr_sub,
-                                                                        split=split_num, tr_sz=tr_sz, eval_set=None)
-                elif self.framework=='keras':
-                    model, trn_outdir, runtime = self.trn_keras_model(model=model, xtr_sub=xtr_sub, ytr_sub=ytr_sub,
-                                                                      split=split_num, tr_sz=tr_sz, eval_set=eval_set)
-                elif self.framework=='pytorch':
+                if self.framework == 'lightgbm':
+                    model, trn_outdir, runtime = self.trn_lgbm_model(
+                        model=model, xtr_sub=xtr_sub, ytr_sub=ytr_sub,
+                        split=split_num, tr_sz=tr_sz, eval_set=eval_set)
+
+                elif self.framework == 'sklearn':
+                    model, trn_outdir, runtime = self.trn_sklearn_model(
+                        model=model, xtr_sub=xtr_sub, ytr_sub=ytr_sub,
+                        split=split_num, tr_sz=tr_sz, eval_set=None)
+
+                elif self.framework == 'keras':
+                    model, trn_outdir, runtime = self.trn_keras_model(
+                        model=model, xtr_sub=xtr_sub, ytr_sub=ytr_sub,
+                        split=split_num, tr_sz=tr_sz, eval_set=eval_set)
+
+                elif self.framework == 'pytorch':
                     raise ValueError(f'Framework {self.framework} is not yet supported.')
+
                 else:
                     raise ValueError(f'Framework {self.framework} is not yet supported.')
-                    
+
                 if model is None:
                     continue # sometimes keras fails to train a model (evaluates to nan)
 
                 # Dump args
-                model_args = self.ml_init_args.copy()
-                model_args.update( self.ml_fit_args )
-                dump_dict(model_args, trn_outdir/'model_args.txt') 
+                # model_args = self.ml_init_args.copy()
+                model_args = ml_init_args.copy()
+                model_args.update(self.ml_fit_args)
+                dump_dict(model_args, trn_outdir/'model_args.txt')
 
                 # Save plot of target distribution
-                plot_hist(ytr_sub, title=f'(Train size={tr_sz})',   path=trn_outdir/'hist_tr.png')
-                plot_hist(yvl,     title=f'(Val size={len(yvl)})',  path=trn_outdir/'hist_vl.png')
-                plot_hist(yte,     title=f'(Test size={len(yte)})', path=trn_outdir/'hist_te.png')
-                    
+                plot_hist(ytr_sub, title=f'(Train size={tr_sz})', path=trn_outdir/'hist_tr.png')
+                plot_hist(yvl, title=f'(Val size={len(yvl)})', path=trn_outdir/'hist_vl.png')
+                plot_hist(yte, title=f'(Test size={len(yte)})', path=trn_outdir/'hist_te.png')
+
                 # Calc preds and scores
                 # ... training set
                 y_pred, y_true = calc_preds(model, x=xtr_sub, y=ytr_sub, mltype=self.mltype)
                 tr_scores = calc_scores(y_true=y_true, y_pred=y_pred, mltype=self.mltype, metrics=None)
-                dump_preds(y_true, y_pred, meta=mtr_sub, outpath=trn_outdir/'preds_tr.csv')
+                # dump_preds(y_true, y_pred, meta=mtr_sub_df, outpath=trn_outdir/'preds_tr.csv')
                 # ... val set
                 y_pred, y_true = calc_preds(model, x=xvl, y=yvl, mltype=self.mltype)
                 vl_scores = calc_scores(y_true=y_true, y_pred=y_pred, mltype=self.mltype, metrics=None)
-                dump_preds(y_true, y_pred, meta=mvl, outpath=trn_outdir/'preds_vl.csv')
+                # dump_preds(y_true, y_pred, meta=mvl_df, outpath=trn_outdir/'preds_vl.csv')
                 # ... test set
                 y_pred, y_true = calc_preds(model, x=xte, y=yte, mltype=self.mltype)
                 te_scores = calc_scores(y_true=y_true, y_pred=y_pred, mltype=self.mltype, metrics=None)
-                dump_preds(y_true, y_pred, meta=mte, outpath=trn_outdir/'preds_te.csv')
-                
+                dump_preds(y_true, y_pred, meta=mte_df, outpath=trn_outdir/'preds_te.csv')
+
                 # del estimator, model
                 del model
 
@@ -385,50 +433,53 @@ class LearningCurve():
 
                 # Add metadata
                 tr_scores['set'] = 'tr'
-                tr_scores['split'] = 'split'+str(split_num)
+                tr_scores['split'] = 'split' + str(split_num)
                 tr_scores['tr_size'] = tr_sz
-                
+
                 vl_scores['set'] = 'vl'
-                vl_scores['split'] = 'split'+str(split_num)
+                vl_scores['split'] = 'split' + str(split_num)
                 vl_scores['tr_size'] = tr_sz
 
                 te_scores['set'] = 'te'
-                te_scores['split'] = 'split'+str(split_num)
+                te_scores['split'] = 'split' + str(split_num)
                 te_scores['tr_size'] = tr_sz
 
                 # Append scores (dicts)
-                tr_scores_all.append( tr_scores )
-                vl_scores_all.append( vl_scores )
-                te_scores_all.append( te_scores )
+                tr_scores_all.append(tr_scores)
+                vl_scores_all.append(vl_scores)
+                te_scores_all.append(te_scores)
 
                 # Dump intermediate scores
-                scores = pd.concat([scores_to_df([tr_scores]), scores_to_df([vl_scores]), scores_to_df([te_scores])], axis=0)
-                scores.to_csv( trn_outdir/'scores.csv', index=False )
+                scores = pd.concat([scores_to_df([tr_scores]),
+                                    scores_to_df([vl_scores]),
+                                    scores_to_df([te_scores])], axis=0)
+                scores.to_csv(trn_outdir/'scores.csv', index=False)
                 del trn_outdir, scores
-                
+
             # Dump intermediate results (this is useful if the run terminates before run ends)
             # scores_all_df_tmp = pd.concat([scores_to_df(tr_scores_all), scores_to_df(vl_scores_all), scores_to_df(te_scores_all)], axis=0)
             # scores_all_df_tmp.to_csv( self.outdir / ('tmp_lc_scores_split' + str(split_num) + '.csv'), index=False )
 
         # Scores to df
-        tr_scores_df = scores_to_df( tr_scores_all )
-        vl_scores_df = scores_to_df( vl_scores_all )
-        te_scores_df = scores_to_df( te_scores_all )
+        tr_scores_df = scores_to_df(tr_scores_all)
+        vl_scores_df = scores_to_df(vl_scores_all)
+        te_scores_df = scores_to_df(te_scores_all)
         scores_df = pd.concat([tr_scores_df, vl_scores_df, te_scores_df], axis=0)
-        
+
         # Dump final results
-        tr_scores_df.to_csv( self.outdir/'tr_lc_scores.csv', index=False) 
-        vl_scores_df.to_csv( self.outdir/'vl_lc_scores.csv', index=False) 
-        te_scores_df.to_csv( self.outdir/'te_lc_scores.csv', index=False) 
+        tr_scores_df.to_csv(self.outdir/'tr_lc_scores.csv', index=False)
+        vl_scores_df.to_csv(self.outdir/'vl_lc_scores.csv', index=False)
+        te_scores_df.to_csv(self.outdir/'te_lc_scores.csv', index=False)
         # scores_df.to_csv( self.outdir/'lc_scores.csv', index=False) 
 
         # Runtime df
-        runtime_df = pd.DataFrame.from_records(runtime_records, columns=['split', 'tr_sz', 'time'])
-        runtime_df.to_csv( self.outdir/'runtime.csv', index=False) 
+        runtime_df = pd.DataFrame.from_records(
+            runtime_records, columns=['split', 'tr_sz', 'time(s)'])
+        runtime_df.to_csv(self.outdir/'runtime.csv', index=False)
 
         return scores_df
-    
-    
+
+
     def get_data_by_id(self, idx):
         """ Returns a tuple of (features (x), target (y), metadata (m))
         for an input array of indices (idx). """
@@ -448,23 +499,25 @@ class LearningCurve():
         return x_data, y_data, m_data    
 
 
+    # def trn_keras_model(self, model, xtr_sub, ytr_sub, split, tr_sz, eval_set=None):
     def trn_keras_model(self, model, xtr_sub, ytr_sub, split, tr_sz, eval_set=None):
         """ Train and save Keras model. """
         trn_outdir = self.create_trn_outdir(split, tr_sz)
-                
+
         # Fit params
         ml_fit_args = self.ml_fit_args.copy()
         ml_fit_args['validation_data'] = eval_set
         ml_fit_args['callbacks'] = self.keras_callbacks_def(
                 outdir=trn_outdir, # **self.keras_callbacks_kwargs,
                 **self.keras_clr_args)
-        
+
         # Train model
         t0 = time()
         history = model.fit(xtr_sub, ytr_sub, **ml_fit_args)
-        runtime = (time() - t0)/60
+        runtime = time() - t0
         save_krs_history(history, outdir=trn_outdir)
-        plot_prfrm_metrics(history, title=f'Train size: {tr_sz}', skp_ep=10, add_lr=True, outdir=trn_outdir)
+        plot_prfrm_metrics(history, title=f'Train size: {tr_sz}', skp_ep=10,
+                           add_lr=True, outdir=trn_outdir)
 
         # Remove key (we'll dump this dict so we don't need to print all the eval set)
         # ml_fit_args.pop('validation_data', None)
@@ -472,11 +525,11 @@ class LearningCurve():
 
         # Load the best model (https://github.com/keras-team/keras/issues/5916)
         # model = keras.models.load_model(str(trn_outdir/'model_best.h5'), custom_objects={'r2_krs': ml_models.r2_krs})
-        model_path = trn_outdir / 'model_best.h5'
+        model_path = trn_outdir/'model_best.h5'
         if model_path.exists():
             # model = keras.models.load_model( str(model_path) )
             import tensorflow as tf
-            model = tf.keras.models.load_model( str(model_path), custom_objects={'r2_krs': r2_krs} )
+            model = tf.keras.models.load_model(str(model_path), custom_objects={'r2_krs': r2_krs})
         else:
             model = None
         return model, trn_outdir, runtime
@@ -493,16 +546,16 @@ class LearningCurve():
         # Train and save model
         t0 = time()
         model.fit(xtr_sub, ytr_sub, **ml_fit_args)
-        runtime = (time() - t0)/60
+        runtime = time() - t0
 
         # Remove key (we'll dump this dict so we don't need to print all the eval set)
         ml_fit_args.pop('eval_set', None)
 
         if self.save_model:
-            joblib.dump(model, filename = trn_outdir / ('model.'+self.model_name+'.pkl') )
+            joblib.dump(model, filename = trn_outdir/('model.'+self.model_name+'.pkl') )
         return model, trn_outdir, runtime
-    
-    
+
+
     def trn_sklearn_model(self, model, xtr_sub, ytr_sub, split, tr_sz, eval_set=None):
         """ Train and save sklearn model. """
         trn_outdir = self.create_trn_outdir(split, tr_sz)
@@ -514,12 +567,12 @@ class LearningCurve():
         # Train and save model
         t0 = time()
         model.fit(xtr_sub, ytr_sub, **ml_fit_args)
-        runtime = (time() - t0)/60
+        runtime = time() - t0
         if self.save_model:
             joblib.dump(model, filename = trn_outdir / ('model.'+self.model_name+'.pkl') )
         return model, trn_outdir, runtime
-    
-    
+
+
     def create_trn_outdir(self, split, tr_sz):
         trn_outdir = self.outdir / ('split'+str(split) + '_sz'+str(tr_sz))
         os.makedirs(trn_outdir, exist_ok=True)
@@ -529,7 +582,7 @@ class LearningCurve():
 
 def scores_to_df( scores_all ):
     """ (tricky commands) """
-    df = pd.DataFrame( scores_all )
+    df = pd.DataFrame(scores_all)
     df_mlt = df.melt(id_vars=['split', 'tr_size', 'set'])
     df_mlt = df_mlt.rename(columns={'variable': 'metric'})
     df_mlt = df_mlt.rename(columns={'value': 'score'})
