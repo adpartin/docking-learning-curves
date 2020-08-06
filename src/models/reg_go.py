@@ -155,9 +155,13 @@ model.compile(loss='mean_squared_error',
 
 # set up a bunch of callbacks to do work during model training..                                                                              
 
-checkpointer = ModelCheckpoint(filepath='reg_go.autosave.model.h5', verbose=1, save_weights_only=False, save_best_only=True)
+checkpointer = ModelCheckpoint(filepath='reg_go.autosave.model.h5',
+                               verbose=1, save_weights_only=False,
+                               save_best_only=True)
 csv_logger = CSVLogger('reg_go.training.log')
-reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.75, patience=20, verbose=1, mode='auto', epsilon=0.0001, cooldown=3, min_lr=0.000000001)
+reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.75, patience=20,
+                              verbose=1, mode='auto', epsilon=0.0001,
+                              cooldown=3, min_lr=0.000000001)
 early_stop = EarlyStopping(monitor='val_loss', patience=100, verbose=1, mode='auto')
 
 

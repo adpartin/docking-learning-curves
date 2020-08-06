@@ -145,9 +145,6 @@ def parse_args(args):
                         help='Path to a single set of HP names and values.')
     parser.add_argument('--ps_hpo_dir', default=None, type=str,
                         help='Path to a dir with multiple sets of HP names and values.')
-    parser.add_argument('--hpo_metric', default='mean_absolute_error', type=str,
-                        choices=['mean_absolute_error'],
-                        help='Metric for HPO evaluation. Required for UPF workflow on Theta HPC (default: mean_absolute_error).')
 
     # Other
     parser.add_argument('--n_jobs', default=4, type=int, help='Default: 4.')
@@ -279,7 +276,8 @@ def run(args):
         keras_clr_kwargs = None
 
     elif args['ml'] == 'keras':
-        from models.reg_go_model import reg_go_model_def, data_prep_reg_go_def, reg_go_callback_def
+        from models.reg_go_model import (reg_go_model_def, data_prep_reg_go_def,
+                                         reg_go_callback_def)
         framework = 'keras'
         mltype = 'reg'
         ml_model_def = reg_go_model_def
@@ -292,89 +290,6 @@ def run(args):
                          'verbose': 1}
         keras_clr_kwargs = {}
 
-    # elif (args['ml'] == 'nn_reg0') or (args['ml'] == 'nn_attn0'):
-    #     # Keras model def
-    #     from models.keras_model import (nn_reg0_model_def, nn_attn0_model_def,
-    #                                     data_prep_nn0_def, model_callback_def)
-    #     framework = 'keras'
-    #     mltype = 'reg'
-    #     keras_callbacks_def = model_callback_def
-    #     data_prep_def = data_prep_nn0_def
-
-    #     if (args['ml'] == 'nn_reg0'):
-    #         ml_model_def = nn_reg0_model_def
-    #     elif (args['ml'] == 'nn_attn0'):
-    #         ml_model_def = nn_attn0_model_def
-
-    #     if (ps_hpo_dir is not None):
-    #         ml_init_kwargs = {'input_dim': xdata.shape[1],
-    #                           'batchnorm': args['batchnorm']}
-
-    #     elif (ls_hpo_dir is not None):
-    #         ls_hpo_fpath = ls_hpo_dir/'best_hps.txt'
-    #         ml_init_kwargs = read_hp_prms(ls_hpo_fpath)
-    #         ml_init_kwargs['input_dim'] = xdata.shape[1]
-    #         ml_init_kwargs['batchnorm'] = args['batchnorm']
-
-    #     elif (ls_hpo_dir is None) and (ps_hpo_dir is None):
-    #         ml_init_kwargs = {'input_dim': xdata.shape[1],
-    #                           'dr_rate': args['dr_rate'],
-    #                           'opt_name': args['opt'],
-    #                           'lr': args['lr'],
-    #                           'batchnorm': args['batchnorm']
-    #                           }
-    #     ml_fit_kwargs = {'epochs': args['epoch'],
-    #                      'batch_size': args['batch_size'],
-    #                      'verbose': 1
-    #                      }
-    #     keras_clr_kwargs = {}
-    #     # keras_clr_kwargs = {'mode': 'trng1', 'base_lr': 0.00005, 'max_lr': 0.0005, 'gamma': None}
-    #     # keras_clr_kwargs = {'mode': 'exp', 'base_lr': 0.00005, 'max_lr': 0.0005, 'gamma': 0.999994}
-    #     # model = ml_model_def(**ml_init_kwargs)
-
-    # elif (args['ml'] == 'nn_reg1') or (args['ml'] == 'nn_attn1'):
-    #     from models.keras_model import (nn_reg1_model_def, nn_attn1_model_def,
-    #                                     data_prep_nn1_def, model_callback_def)
-    #     framework = 'keras'
-    #     mltype = 'reg'
-    #     keras_callbacks_def = model_callback_def
-    #     data_prep_def = data_prep_nn1_def
-
-    #     if (args['ml'] == 'nn_reg1'):
-    #         ml_model_def = nn_reg1_model_def
-    #     elif (args['ml'] == 'nn_attn1'):
-    #         ml_model_def = nn_attn1_model_def
-
-    #     x_ge = extract_subset_fea(xdata, fea_list=['ge'], fea_sep='_')
-    #     x_dd = extract_subset_fea(xdata, fea_list=['dd'], fea_sep='_')
-
-    #     if (ps_hpo_dir is not None):
-    #         ml_init_kwargs = {'in_dim_ge': x_ge.shape[1],
-    #                           'in_dim_dd': x_dd.shape[1],
-    #                           'batchnorm': args['batchnorm']
-    #                           }
-
-    #     elif (ls_hpo_dir is not None):
-    #         ls_hpo_fpath = ls_hpo_dir/'best_hps.txt'
-    #         ml_init_kwargs = read_hp_prms( ls_hpo_fpath )
-    #         ml_init_kwargs['in_dim_ge'] = x_ge.shape[1]
-    #         ml_init_kwargs['in_dim_dd'] = x_dd.shape[1]
-    #         ml_init_kwargs['batchnorm'] = args['batchnorm']
-
-    #     elif (ls_hpo_dir is None) and (ps_hpo_dir is None):
-    #         ml_init_kwargs = {'in_dim_ge': x_ge.shape[1],
-    #                           'in_dim_dd': x_dd.shape[1],
-    #                           'dr_rate': args['dr_rate'],
-    #                           'opt_name': args['opt'],
-    #                           'lr': args['lr'],
-    #                           'batchnorm': args['batchnorm']
-    #                           }
-    #     ml_fit_kwargs = {'epochs': args['epoch'],
-    #                      'batch_size': args['batch_size'],
-    #                      'verbose': 1
-    #                      }
-    #     keras_clr_kwargs = {}
-
     # Print NN
     if len(ml_init_kwargs) and ('keras' in args['ml']):
         model = ml_model_def(**ml_init_kwargs)
@@ -386,7 +301,6 @@ def run(args):
     # -----------------------------------------------
     #      Learning curve
     # -----------------------------------------------
-    # LC args
     lc_init_args = {'cv_lists': cv_lists,
                     'n_splits': args['n_splits'],
                     'mltype': mltype,
@@ -421,7 +335,7 @@ def run(args):
     # kwargs = {'tr_set': 'te', 'xtick_scale': 'log2', 'ytick_scale': 'log2'}
     # lc_plots.plot_lc_many_metric(lc_scores, outdir=rout, **kwargs)
     # kwargs = {'tr_set': 'te', 'xtick_scale': 'linear', 'ytick_scale': 'linear'}
-    # lc_plots.plot_lc_many_metric( lc_scores, outdir=rout, **kwargs )
+    # lc_plots.plot_lc_many_metric(lc_scores, outdir=rout, **kwargs)
 
     # Dump args
     dump_dict(args, outpath=rout/'args.txt')

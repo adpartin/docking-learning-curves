@@ -75,7 +75,7 @@ def set_yticks(ax, ylim=None):
     return ax    
 
 
-def plot_lc_many_metric(scores, outdir:Path, metrics:list=None, **plot_args):
+def plot_lc_many_metric(scores, outdir: Path, metrics: list=None, **plot_args):
     """ Iterate over metrics and plot LC data for each metric. """
     if metrics is None:
         metrics = scores['metric'].unique()

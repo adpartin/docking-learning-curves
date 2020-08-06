@@ -48,17 +48,18 @@ def clr_keras_callback(mode=None, base_lr=1e-4, max_lr=1e-3, gamma=0.999994):
 
 def reg_go_callback_def(outdir, ref_metric='val_loss', **clr_kwargs):
     """ Required for lrn_crv.py """
-    checkpointer = ModelCheckpoint(
-        str(outdir/'model_best.h5'), monitor='val_loss', verbose=0,
-        save_weights_only=False, save_best_only=True)
+    checkpointer = ModelCheckpoint(str(outdir/'model_best.h5'),
+                                   monitor='val_loss', verbose=0,
+                                   save_weights_only=False, save_best_only=True)
     csv_logger = CSVLogger(outdir/'training.log')
-    reduce_lr = ReduceLROnPlateau(
-        monitor=ref_metric, factor=0.75, patience=25, verbose=1,
-        mode='auto', min_delta=0.0001, cooldown=3, min_lr=0.000000001)
-    early_stop = EarlyStopping(monitor=ref_metric, patience=50, verbose=1, mode='auto')
+    reduce_lr = ReduceLROnPlateau(monitor=ref_metric, factor=0.75,
+                                  patience=10, verbose=1, mode='auto',
+                                  min_delta=0.0001, cooldown=3, min_lr=0.000000001)
+    early_stop = EarlyStopping(monitor=ref_metric, patience=15, verbose=1,
+                               mode='auto')
 
     if bool(clr_kwargs):
-        clr = clr_keras_callback( **clr_kwargs )
+        clr = clr_keras_callback(**clr_kwargs)
         return [checkpointer, csv_logger, early_stop, reduce_lr, clr]
 
     return [checkpointer, csv_logger, early_stop, reduce_lr]
@@ -67,13 +68,13 @@ def reg_go_callback_def(outdir, ref_metric='val_loss', **clr_kwargs):
 def reg_go_arch(input_dim, dr_rate=0.1):
     DR = dr_rate
     inputs = Input(shape=(input_dim,), name='inputs')
-    x = Dense(250, activation='relu')(inputs)
+    x = Dense(250, activation='elu')(inputs)
     x = Dropout(DR)(x)
-    x = Dense(125, activation='relu')(x)
+    x = Dense(125, activation='elu')(x)
     x = Dropout(DR)(x)
-    x = Dense(60, activation='relu')(x)
+    x = Dense(60, activation='elu')(x)
     x = Dropout(DR)(x)
-    x = Dense(30, activation='relu')(x)
+    x = Dense(30, activation='elu')(x)
     x = Dropout(DR)(x)
     outputs = Dense(1, activation='relu')(x)
 
@@ -97,7 +98,7 @@ def reg_go_model_def(**model_init):
     opt = SGD(lr=0.0001, momentum=0.9)
     model.compile(loss='mean_squared_error',
                   optimizer=opt,
-                  metrics=['mae', r2_krs])
+                  metrics=['mae'])  # r2_krs
     return model
 
 
