@@ -53,9 +53,9 @@ def reg_go_callback_def(outdir, ref_metric='val_loss', **clr_kwargs):
                                    save_weights_only=False, save_best_only=True)
     csv_logger = CSVLogger(outdir/'training.log')
     reduce_lr = ReduceLROnPlateau(monitor=ref_metric, factor=0.75,
-                                  patience=10, verbose=1, mode='auto',
+                                  patience=8, verbose=1, mode='auto',
                                   min_delta=0.0001, cooldown=3, min_lr=0.000000001)
-    early_stop = EarlyStopping(monitor=ref_metric, patience=15, verbose=1,
+    early_stop = EarlyStopping(monitor=ref_metric, patience=12, verbose=1,
                                mode='auto')
 
     if bool(clr_kwargs):

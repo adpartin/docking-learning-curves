@@ -79,6 +79,7 @@ def agg_scores_02(run_dirs):
             scores.append(scr)
 
     scores = pd.concat(scores, axis=0)
+    scores = scores.sort_values('tr_size').reset_index(drop=True)
     return scores
 
 

@@ -1,71 +1,61 @@
 #!/bin/bash
 
 # Example:
-# lc_keras.bash gdsc nn_reg0 0
-# lc_keras.bash gdsc2 nn_reg0 0
+# bash scripts/gen_lc_keras.bash 3 random 0
+# bash scripts/gen_lc_keras.bash 3 flatten 0
 
-# Call this function from the main project dir!
-OUTDIR=lc.out
+DEVICE=$1
+SAMPLING=$2
+SPLIT=$3
+
+OUTDIR=lc.out.linear.2M
 mkdir -p $OUTDIR
 echo "Outdir $OUTDIR"
 
-# LC_SIZES=5
 LC_SIZES=7
 # LC_SIZES=12
 
+# EPOCH=1
 # EPOCH=2
-# EPOCH=10
-EPOCH=500
+EPOCH=400
 
-SPLIT=0
+# SPLIT=0
 
-# Default HPs
-SOURCE=$1
-MODEL=$2
-DEVICE=$3
+export CUDA_VISIBLE_DEVICES=$1
+echo "CUDA:     $CUDA_VISIBLE_DEVICES"
+echo "Sampling: $SAMPLING"
+echo "Split:    $SPLIT"
 
-export CUDA_VISIBLE_DEVICES=$3
-echo "Source: $SOURCE"
-echo "Model:  $MODEL"
-echo "CUDA device: $CUDA_VISIBLE_DEVICES"
-echo "LC sizes: $LC_SIZES"
+data_version="V5.1"
 
-data_version=July2020
-dpath=data/ml.dfs/$data_version/data.$SOURCE.dd.ge/data.$SOURCE.dd.ge.parquet 
-spath=data/ml.dfs/$data_version/data.$SOURCE.dd.ge/data.$SOURCE.dd.ge.splits 
-# ps_hpo_dir=k-tuner/${SOURCE}_${MODEL}_tuner_out/ps_hpo
-ls_hpo_dir=k-tuner/${SOURCE}_${MODEL}_tuner_out/ls_hpo
+receptor="ADRP_6W02_A_1_H"
+target="DIR.ml.ADRP_6W02_A_1_H.Orderable_zinc_db_enaHLL.sorted.4col"
+ml_fname="ml.ADRP_6W02_A_1_H.Orderable_zinc_db_enaHLL.sorted.4col.descriptors.parquet"
+sp_dname="ml.ADRP_6W02_A_1_H.Orderable_zinc_db_enaHLL.sorted.4col.descriptors.splits"
+gout=$OUTDIR/lc.${receptor}.${SAMPLING}
 
-n_runs=1
-# n_runs=3
-for r in $(seq 1 $n_runs); do
-    echo "Run $r"
+dpath=data/$data_version-2M-$SAMPLING/$target/$ml_fname
+spath=data/$data_version-2M-$SAMPLING/$target/$sp_dname
 
-    # r=7
-    python src/main_lc.py \
-        -dp $dpath \
-        -sd $spath \
-        --split_id $SPLIT \
-        --ml $MODEL \
-        --epoch $EPOCH \
-        --batchnorm \
-        --gout $OUTDIR/lc.${SOURCE}.${MODEL}.ls_hpo \
-        --ls_hpo_dir $ls_hpo_dir \
-        --rout run$r \
-        --min_size 20000 \
-        --lc_sizes $LC_SIZES
+r=1
+python src/main_lc.py \
+    -dp $dpath \
+    -sd $spath \
+    --split_id $SPLIT \
+    --rout run${r} \
+    --ml keras \
+    --epoch $EPOCH \
+    --batchnorm \
+    --gout $gout \
+    --min_size 100000 \
+    --lc_step_scale linear \
+    --lc_sizes $LC_SIZES
 
-        # --lc_sizes_arr 700000 500000 
+    # --lc_sizes_arr 750000 700000 600000
 
-        # --lc_sizes $LC_SIZES \
-        # --min_size 10000 
+    # --rout run${SPLIT} \
+    # --lc_sizes_arr 500000 570000 640000
 
-        # --max_size 700000
-        # --lc_sizes_arr 10000 20000 50000 100000 300000 500000 700000
-
-        # --lc_sizes_arr 400000
-        # --ps_hpo_dir $ps_hpo_dir \
-        # --lc_sizes $LC_SIZES \
-        # --min_size 2024
-done
-
+#     --min_size 20000 \
+#     --lc_sizes $LC_SIZES
+    # --ls_hpo_dir $ls_hpo_dir \
