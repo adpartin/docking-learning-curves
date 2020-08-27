@@ -34,18 +34,22 @@ ml_fname="ml.ADRP_6W02_A_1_H.Orderable_zinc_db_enaHLL.sorted.4col.descriptors.pa
 sp_dname="ml.ADRP_6W02_A_1_H.Orderable_zinc_db_enaHLL.sorted.4col.descriptors.splits"
 gout=$OUTDIR/lc.${receptor}.${SAMPLING}
 
-dpath=data/$data_version-2M-$SAMPLING/$target/$ml_fname
-spath=data/$data_version-2M-$SAMPLING/$target/$sp_dname
+# datapath=data/$data_version-2M-$SAMPLING/$target/$ml_fname
+# splitdir=data/$data_version-2M-$SAMPLING/$target/$sp_dname
+datapath=data/$data_version-2M-$SAMPLING-dd-fps/$target/$ml_fname
+splitdir=data/$data_version-2M-$SAMPLING-dd-fps/$target/$sp_dname
+
 
 r=1
 python src/main_lc.py \
-    -dp $dpath \
-    -sd $spath \
+    -dp $datapath \
+    -sd $splitdir \
     --split_id $SPLIT \
     --rout run${r} \
     --ml keras \
     --epoch $EPOCH \
     --batchnorm \
+    --scaler minmax \
     --gout $gout \
     --min_size 100000 \
     --lc_step_scale linear \

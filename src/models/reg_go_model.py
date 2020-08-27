@@ -67,14 +67,16 @@ def reg_go_callback_def(outdir, ref_metric='val_loss', **clr_kwargs):
 
 def reg_go_arch(input_dim, dr_rate=0.1):
     DR = dr_rate
+    act = 'elu'
+
     inputs = Input(shape=(input_dim,), name='inputs')
-    x = Dense(250, activation='elu')(inputs)
+    x = Dense(250, activation=act)(inputs)
     x = Dropout(DR)(x)
-    x = Dense(125, activation='elu')(x)
+    x = Dense(125, activation=act)(x)
     x = Dropout(DR)(x)
-    x = Dense(60, activation='elu')(x)
+    x = Dense(60, activation=act)(x)
     x = Dropout(DR)(x)
-    x = Dense(30, activation='elu')(x)
+    x = Dense(30, activation=act)(x)
     x = Dropout(DR)(x)
     outputs = Dense(1, activation='relu')(x)
 
@@ -95,7 +97,7 @@ def reg_go_model_def(**model_init):
     #     name='MyCyclicScheduler')
     # opt = tf.keras.optimizers.SGD(learning_rate=lr_schedule)
 
-    opt = SGD(lr=0.0001, momentum=0.9)
+    opt = SGD(lr=0.001, momentum=0.9)
     model.compile(loss='mean_squared_error',
                   optimizer=opt,
                   metrics=['mae'])  # r2_krs

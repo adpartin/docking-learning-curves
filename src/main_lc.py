@@ -184,7 +184,6 @@ def run(args):
         rout = gout/args['rout']
     else:
         if splitdir is None:
-            # rout = gout/f'run'
             rout = gout
         else:
             rout = gout/f'split_{split_id}'
@@ -219,6 +218,7 @@ def run(args):
     #       Scale features
     # -----------------------------------------------
     xdata = scale_fea(xdata=xdata, scaler_name=args['scaler'])
+    xdata = xdata.fillna(0, axis=0)
 
     # -----------------------------------------------
     #       Data splits
@@ -330,12 +330,6 @@ def run(args):
 
     # Dump all scores
     lc_scores.to_csv(rout/'lc_scores.csv', index=False)
-
-    # Load results and plot
-    # kwargs = {'tr_set': 'te', 'xtick_scale': 'log2', 'ytick_scale': 'log2'}
-    # lc_plots.plot_lc_many_metric(lc_scores, outdir=rout, **kwargs)
-    # kwargs = {'tr_set': 'te', 'xtick_scale': 'linear', 'ytick_scale': 'linear'}
-    # lc_plots.plot_lc_many_metric(lc_scores, outdir=rout, **kwargs)
 
     # Dump args
     dump_dict(args, outpath=rout/'args.txt')
